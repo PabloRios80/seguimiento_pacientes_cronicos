@@ -3,180 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe de Seguimiento y Autocuidado</title>
+    <title>Informe de Seguimiento</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Librería para generar PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .loader { border-right-color: #3b82f6; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Estilo para la plantilla PDF oculta */
-        #pdf-template { display: none; }
+        
+        /* Scroll personalizado */
+        .modal-scroll::-webkit-scrollbar { width: 8px; }
+        .modal-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* --- MAGIA DE IMPRESIÓN --- */
+        @media print {
+            body * { visibility: hidden; } /* Ocultar todo */
+            #ver-resumen-modal, #ver-resumen-modal * { visibility: visible; } /* Mostrar solo el modal */
+            #ver-resumen-modal {
+                position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
+                background: white !important; box-shadow: none !important;
+            }
+            /* Ocultar botones y barras de scroll al imprimir */
+            .no-print, .modal-scroll { overflow: visible !important; } 
+            button, #close-resumen-btn { display: none !important; }
+            /* Ajustes para que entre en la hoja */
+            .modal-content-wrapper { padding: 0 !important; border: none !important; }
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div class="container mx-auto bg-white rounded-xl shadow-lg my-8 max-w-4xl p-6 md:p-10">
+<body class="flex items-start justify-center min-h-screen p-4 print:p-0">
+    <div class="container mx-auto bg-white rounded-2xl shadow-xl my-6 max-w-5xl p-6 md:p-8 border border-slate-100">
         
-        <!-- Header Web -->
-        <div class="flex justify-between items-center border-b-4 border-blue-500 pb-3 mb-8">
-            <h1 class="text-3xl font-extrabold text-gray-800">
-                <i class="fas fa-notes-medical text-blue-500 mr-2"></i> Seguimiento
-            </h1>
-            <button id="signout-btn" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 px-4 rounded-full shadow transition">
-                <i class="fas fa-sign-out-alt mr-1"></i> Salir
+        <!-- Cabecera -->
+        <div class="flex justify-between items-center border-b-2 border-slate-100 pb-4 mb-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-md">
+                    <i class="fas fa-heartbeat text-xl"></i>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
+                    Seguimiento <span class="text-blue-600">Crónicos</span>
+                </h1>
+            </div>
+            <button id="signout-btn" class="bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 text-sm font-bold py-2 px-4 rounded-full transition flex items-center shadow-sm">
+                <i class="fas fa-sign-out-alt mr-2"></i> Salir
             </button>
         </div>
         
-        <!-- I. DATOS PROFESIONAL -->
-        <div class="mb-6 border border-gray-200 p-5 rounded-lg bg-gray-50">
-            <h2 class="text-lg font-bold text-gray-700 mb-3">I. Profesional y Paciente</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- I. DATOS (Estilo Azul/Indigo) -->
+        <div class="mb-8 border border-indigo-100 p-6 rounded-2xl bg-indigo-50/50 shadow-sm">
+            <div class="flex items-center mb-4">
+                <span class="bg-white text-indigo-600 p-2 rounded-lg shadow-sm mr-3 border border-indigo-100"><i class="fas fa-user-md"></i></span>
+                <h2 class="text-lg font-bold text-indigo-900">I. Datos Profesionales</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Profesional</label>
-                    <input type="text" id="profesional-nombre" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                    <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Profesional</label>
+                    <input type="text" id="profesional-nombre" class="w-full border border-indigo-200 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition shadow-sm text-indigo-900 placeholder-indigo-300" placeholder="Nombre y Apellido">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Matrícula</label>
-                    <input type="text" id="profesional-matricula" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                    <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Matrícula</label>
+                    <input type="text" id="profesional-matricula" class="w-full border border-indigo-200 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm text-indigo-900">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Fecha</label>
-                    <input type="date" id="seguimiento-fecha" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                    <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Fecha</label>
+                    <input type="date" id="seguimiento-fecha" class="w-full border border-indigo-200 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm text-indigo-900">
                 </div>
             </div>
-            <div class="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
-                <div>
-                    <span class="text-gray-600 text-sm">Paciente:</span>
-                    <span id="afiliado-nombre" class="font-bold text-gray-800 ml-2"></span>
+            <!-- Fila de Paciente -->
+            <div class="mt-5 pt-4 border-t border-indigo-200/60 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-100 shadow-sm">
+                    <span class="text-xs font-bold text-indigo-400 uppercase mr-3">Paciente</span>
+                    <strong id="afiliado-nombre" class="text-indigo-900 text-lg truncate">Cargando...</strong>
                 </div>
-                <div>
-                    <span class="text-gray-600 text-sm">DNI:</span>
-                    <span id="afiliado-dni" class="font-bold text-gray-800 ml-2"></span>
+                <div class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-100 shadow-sm">
+                    <span class="text-xs font-bold text-indigo-400 uppercase mr-3">DNI</span>
+                    <strong id="afiliado-dni" class="text-indigo-900 text-lg">...</strong>
                 </div>
             </div>
         </div>
 
-        <!-- II. ALERTAS (RED FLAGS) -->
-        <div class="mb-6">
-            <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">II. Motivos de Seguimiento (Alertas)</h2>
+        <!-- II. ALERTAS (Estilo Rojo/Rose) -->
+        <div class="mb-8 border border-rose-100 p-6 rounded-2xl bg-rose-50/30">
+            <div class="flex items-center mb-5">
+                <span class="bg-rose-100 text-rose-600 p-2 rounded-lg shadow-sm mr-3 border border-rose-200"><i class="fas fa-heartbeat"></i></span>
+                <h2 class="text-xl font-bold text-rose-900">II. Indicadores Clínicos (Alertas)</h2>
+            </div>
             <div id="motivos-seguimiento-container" class="space-y-4">
-                <p class="text-gray-500 italic">Cargando...</p>
+                <p class="text-rose-400 italic text-center py-4">Cargando indicadores...</p>
             </div>
         </div>
 
-        <!-- III. EVALUACIÓN GENERAL (FIJOS) -->
-        <div class="mb-6">
-            <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">III. Evaluación General y Hábitos</h2>
+        <!-- III. HÁBITOS (Estilo Verde/Teal) -->
+        <div class="mb-8 border border-teal-100 p-6 rounded-2xl bg-teal-50/30">
+            <div class="flex items-center mb-5">
+                <span class="bg-teal-100 text-teal-600 p-2 rounded-lg shadow-sm mr-3 border border-teal-200"><i class="fas fa-walking"></i></span>
+                <h2 class="text-xl font-bold text-teal-900">III. Evaluación General y Hábitos</h2>
+            </div>
             <div id="items-fijos-container" class="space-y-4"></div>
         </div>
 
-        <!-- IV. OBSERVACIONES -->
-        <div class="mb-8">
-            <h2 class="text-xl font-bold text-gray-700 mb-2">IV. Conclusión Profesional</h2>
-            <textarea id="observacion-profesional" rows="4" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-blue-500" placeholder="Resumen clínico, indicaciones..."></textarea>
+        <!-- IV. CONCLUSIÓN (Estilo Ambar/Yellow) -->
+        <div class="mb-10 border border-amber-200 bg-amber-50/50 p-6 rounded-2xl shadow-sm">
+            <h2 class="text-sm font-bold text-amber-600 uppercase mb-3 flex items-center">
+                <i class="fas fa-comment-medical mr-2"></i> IV. Conclusión Profesional
+            </h2>
+            <textarea id="observacion-profesional" rows="3" class="w-full border border-amber-300 rounded-xl p-4 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition bg-white text-slate-700 placeholder-amber-300/70" placeholder="Resumen de la evolución, cambios en medicación o nuevas indicaciones..."></textarea>
         </div>
 
-        <!-- BOTONES GUARDAR -->
-        <div class="flex justify-center gap-4 mb-10">
-            <button id="guardar-seguimiento-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition transform hover:scale-105">
-                <i class="fas fa-save mr-2"></i> Guardar Informe
+        <!-- BOTONES PRINCIPALES -->
+        <div class="flex flex-col sm:flex-row justify-center gap-5 mb-16">
+            <button id="guardar-seguimiento-btn" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-12 rounded-full shadow-xl shadow-slate-200 transition transform hover:-translate-y-1 flex items-center justify-center group">
+                <i class="fas fa-save mr-3 group-hover:scale-110 transition"></i> Guardar Informe
             </button>
-            <button id="cancelar-seguimiento-btn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-8 rounded-lg shadow transition">
+            <button id="cancelar-seguimiento-btn" class="bg-white border-2 border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 font-bold py-4 px-8 rounded-full shadow-sm transition">
                 Cancelar
             </button>
         </div>
 
-        <!-- HISTORIAL DE INFORMES -->
-        <div class="border-t-2 border-gray-200 pt-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold text-gray-700"><i class="fas fa-history mr-2"></i> Historial</h2>
-                <button id="refresh-history-btn" class="text-blue-600 hover:underline text-sm font-semibold">
-                    <i class="fas fa-sync-alt"></i> Actualizar
+        <!-- HISTORIAL -->
+        <div class="border-t-2 border-dashed border-slate-200 pt-10">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-xl font-bold text-slate-700 flex items-center">
+                    <i class="fas fa-history text-slate-400 mr-3"></i> Historial Clínico
+                </h2>
+                <button id="refresh-history-btn" class="text-blue-600 hover:text-blue-800 text-sm font-bold bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full transition">
+                    <i class="fas fa-sync-alt mr-1"></i> Actualizar
                 </button>
             </div>
-            <div id="history-list" class="grid grid-cols-1 gap-3">
-                <p class="text-gray-500 text-center py-4 bg-gray-50 rounded">Cargando historial...</p>
+            <div id="history-list" class="grid grid-cols-1 gap-4">
+                <!-- Lista inyectada por JS -->
             </div>
-        </div>
-
-    </div>
-
-    <!-- PLANTILLA PDF OCULTA (Diseño tipo A4) -->
-    <div id="pdf-template" class="bg-white p-8" style="width: 800px; font-family: 'Arial', sans-serif; color: #333;">
-        <!-- Cabecera PDF -->
-        <div class="flex justify-between items-center border-b-2 border-blue-800 pb-4 mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-blue-900">INFORME DE SEGUIMIENTO</h1>
-                <p class="text-sm text-gray-500">Atención de Pacientes Crónicos</p>
-            </div>
-            <div class="text-right">
-                <p class="font-bold text-lg" id="pdf-fecha">DD/MM/AAAA</p>
-                <p class="text-xs text-gray-400">Generado automáticamente</p>
-            </div>
-        </div>
-
-        <!-- Datos Paciente/Medico PDF -->
-        <div class="bg-blue-50 p-4 rounded mb-6 border border-blue-100">
-            <table class="w-full text-sm">
-                <tr>
-                    <td class="font-bold text-blue-800 w-1/4 py-1">PACIENTE:</td>
-                    <td class="w-1/4" id="pdf-paciente">Nombre Apellido</td>
-                    <td class="font-bold text-blue-800 w-1/4 py-1">PROFESIONAL:</td>
-                    <td class="w-1/4" id="pdf-profesional">Dr. Nombre</td>
-                </tr>
-                <tr>
-                    <td class="font-bold text-blue-800 py-1">DNI:</td>
-                    <td id="pdf-dni">12.345.678</td>
-                    <td class="font-bold text-blue-800 py-1">MATRÍCULA:</td>
-                    <td id="pdf-matricula">MP 1234</td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Cuerpo del Informe -->
-        <div class="mb-6">
-            <h3 class="font-bold text-blue-900 border-b border-gray-300 mb-3 pb-1 uppercase text-sm">Evaluación Detallada</h3>
-            <table class="w-full text-sm border-collapse">
-                <thead>
-                    <tr class="bg-gray-100 text-left">
-                        <th class="p-2 border border-gray-300 w-1/3">Ítem Evaluado</th>
-                        <th class="p-2 border border-gray-300 w-1/6">Estado</th>
-                        <th class="p-2 border border-gray-300">Observaciones</th>
-                    </tr>
-                </thead>
-                <tbody id="pdf-table-body">
-                    <!-- Se llena dinámicamente -->
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Observacion Final -->
-        <div class="mb-10">
-            <h3 class="font-bold text-blue-900 border-b border-gray-300 mb-3 pb-1 uppercase text-sm">Conclusión / Indicaciones</h3>
-            <div id="pdf-observacion" class="p-4 border border-gray-300 rounded bg-gray-50 text-sm italic min-h-[80px]">
-                Sin observaciones generales.
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="text-center text-xs text-gray-400 border-t pt-4 mt-auto">
-            <p>Documento de uso interno para seguimiento de pacientes crónicos.</p>
         </div>
     </div>
 
-    <!-- Modal de Carga -->
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-2xl flex items-center space-x-4">
-            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
-            <p class="text-gray-700 font-semibold" id="loading-text">Procesando...</p>
+    <!-- ============================================================== -->
+    <!-- MODAL: VISOR DE RESUMEN HISTÓRICO -->
+    <!-- ============================================================== -->
+    <div id="ver-resumen-modal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] border border-slate-200 modal-content-wrapper">
+            
+            <!-- Cabecera Modal -->
+            <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/80 rounded-t-2xl">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded uppercase">Informe Histórico</span>
+                        <span class="text-slate-400 text-xs">|</span>
+                        <span id="modal-paciente-nombre" class="font-bold text-slate-700 text-lg">Paciente Desconocido</span>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-1" id="modal-fecha-profesional">Cargando...</p>
+                </div>
+                <div class="flex gap-2 no-print">
+                    <button id="print-btn" class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition" title="Imprimir">
+                        <i class="fas fa-print text-xl"></i>
+                    </button>
+                    <button id="close-resumen-btn" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition" title="Cerrar">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cuerpo Scrollable -->
+            <div class="p-8 overflow-y-auto modal-scroll flex-1 bg-white">
+                
+                <!-- Sección Alertas -->
+                <div class="mb-8">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Hallazgos y Alertas</h4>
+                    <div id="modal-lista-alertas" class="space-y-3">
+                        <!-- Aquí se inyectan las alertas -->
+                    </div>
+                    <div id="modal-sin-alertas" class="hidden bg-emerald-50 text-emerald-700 p-4 rounded-xl text-sm text-center border border-emerald-100">
+                        <i class="fas fa-check-circle text-lg mb-1 block"></i> Paciente estable. Sin alertas negativas registradas.
+                    </div>
+                </div>
+
+                <!-- Sección Observación -->
+                <div>
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Indicaciones del Profesional</h4>
+                    <div class="bg-amber-50 p-6 rounded-xl border border-amber-100 text-slate-700 text-sm relative">
+                        <i class="fas fa-quote-left text-amber-200 text-4xl absolute top-2 left-2 -z-0 opacity-50"></i>
+                        <span id="modal-observacion-texto" class="relative z-10 block pl-4 leading-relaxed">...</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Modal (Botón visible solo en pantalla) -->
+            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl text-right no-print">
+                <button id="btn-cerrar-modal-inferior" class="bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-6 py-2 rounded-lg font-bold transition shadow-sm">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal Mensajes -->
-    <div id="message-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center z-50"></div>
+    <!-- Loader y Mensajes -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 hidden items-center justify-center z-[60] backdrop-blur-sm">
+        <div class="text-center">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-600 h-12 w-12 mx-auto mb-4 shadow-lg shadow-blue-200"></div>
+            <p class="text-slate-600 font-bold animate-pulse" id="loading-text">Procesando datos...</p>
+        </div>
+    </div>
+    <div id="message-modal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-[70] backdrop-blur-sm"></div>
 
     <script src="seguimiento-formulario.js"></script>
 </body>
