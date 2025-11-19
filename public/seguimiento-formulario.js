@@ -21,7 +21,7 @@ function cleanId(str) {
 
 function showModalMessage(msg, isError=false, callback=null) {
     const modal = document.getElementById('message-modal');
-    const color = isError ? 'rose' : 'emerald'; // Colores Tailwind actualizados
+    const color = isError ? 'rose' : 'emerald';
     const icon = isError ? 'fa-exclamation-circle' : 'fa-check-circle';
     
     modal.innerHTML = `
@@ -33,10 +33,15 @@ function showModalMessage(msg, isError=false, callback=null) {
                 <h3 class="text-xl font-black text-slate-800">${isError?'Atención':'¡Éxito!'}</h3>
             </div>
             <p class="text-slate-500 mb-6 text-center leading-relaxed">${msg}</p>
-            <button id="modal-ok" class="bg-slate-900 text-white px-6 py-3 rounded-xl hover:bg-slate-800 w-full font-bold transition shadow-lg shadow-slate-200">Entendido</button>
+            <button id="modal-ok" class="bg-slate-900 text-white px-6 py-3 rounded-xl hover:bg-slate-800 w-full font-bold transition shadow-lg shadow-slate-200">
+                ${isError ? 'Entendido' : 'Aceptar'}
+            </button>
         </div>`;
     modal.classList.remove('hidden'); modal.classList.add('flex');
-    document.getElementById('modal-ok').onclick = () => {
+    
+    const okBtn = document.getElementById('modal-ok');
+    // Evitamos acumulación de eventos
+    okBtn.onclick = () => {
         modal.classList.add('hidden'); modal.classList.remove('flex');
         if(callback) callback();
     };
@@ -47,21 +52,17 @@ function showModalMessage(msg, isError=false, callback=null) {
 // ====================================================================
 
 function abrirModalResumen(data) {
-    // 1. Llenar Cabecera
     const fechaStr = data.fecha; 
     const profNombre = data.profesional.nombre || 'Desconocido';
-    const pacNombre = data.paciente.nombre || 'Paciente'; // Dato del paciente
+    const pacNombre = data.paciente.nombre || 'Paciente';
     
-    // Inyectar Nombre Paciente en el Modal
     document.getElementById('modal-paciente-nombre').textContent = pacNombre;
-
     document.getElementById('modal-fecha-profesional').innerHTML = `
         <span class="font-bold text-slate-700"><i class="far fa-calendar-alt mr-1 text-blue-500"></i> ${fechaStr}</span> 
         <span class="mx-2 text-slate-300">|</span> 
         <span class="text-slate-500">Atendido por: <strong class="text-slate-700">${profNombre}</strong></span>
     `;
 
-    // 2. Filtrar Alertas
     const alertas = data.evaluaciones.filter(item => 
         item.calificacion === 'Malo' || 
         item.calificacion === 'Regular' || 
@@ -76,10 +77,9 @@ function abrirModalResumen(data) {
         sinAlertasMsg.classList.remove('hidden');
     } else {
         sinAlertasMsg.classList.add('hidden');
-        
         alertas.forEach(item => {
             const div = document.createElement('div');
-            let colorClass = 'bg-indigo-50 border-indigo-100'; // Default azulado
+            let colorClass = 'bg-indigo-50 border-indigo-100';
             let textTitle = 'text-indigo-900';
             let badgeColor = 'bg-indigo-200 text-indigo-800';
 
@@ -105,11 +105,7 @@ function abrirModalResumen(data) {
         });
     }
 
-    // 3. Observación
-    const obs = data.observacionProfesional || "Sin indicaciones adicionales.";
-    document.getElementById('modal-observacion-texto').textContent = obs;
-
-    // 4. Mostrar
+    document.getElementById('modal-observacion-texto').textContent = data.observacionProfesional || "Sin indicaciones adicionales.";
     const modal = document.getElementById('ver-resumen-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -165,7 +161,6 @@ async function cargarHistorial(dni) {
                     Ver <i class="fas fa-chevron-right ml-2"></i>
                 </button>
             `;
-            
             item.onclick = () => reconstruirYMostrar(registro);
             lista.appendChild(item);
         });
@@ -205,14 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const afiliadosNombreEl = document.getElementById('afiliado-nombre');
     const afiliadosDniEl = document.getElementById('afiliado-dni');
     
-    // Listeners Modal
     document.getElementById('close-resumen-btn').addEventListener('click', cerrarModalResumen);
     document.getElementById('btn-cerrar-modal-inferior').addEventListener('click', cerrarModalResumen);
-    
-    // Listener Imprimir (Nativo)
-    document.getElementById('print-btn').addEventListener('click', () => {
-        window.print(); // Esto activa el CSS @media print que definimos
-    });
+    document.getElementById('print-btn').addEventListener('click', () => window.print());
 
     let currentPatient = null;
     try {
@@ -240,10 +230,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const safeId = cleanId(titulo);
             
             const div = document.createElement('div');
-            // Clases Vistosas para las Cards
-            let borderColor = esFijo ? 'border-teal-100' : 'border-rose-100';
-            let iconColor = esFijo ? 'text-teal-500' : 'text-rose-500';
-            let bgTitle = esFijo ? 'bg-teal-50' : 'bg-rose-50';
+            let borderColor = esFijo ? 'border-teal-200' : 'border-rose-200';
+            let iconColor = esFijo ? 'text-teal-600' : 'text-rose-600';
+            let bgTitle = esFijo ? 'bg-teal-100' : 'bg-rose-100';
             let titleColor = esFijo ? 'text-teal-900' : 'text-rose-900';
 
             div.className = `bg-white p-5 rounded-2xl border ${borderColor} mb-5 evaluacion-item shadow-sm hover:shadow-md transition duration-300`;
@@ -290,7 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('guardar-seguimiento-btn').addEventListener('click', async () => {
         const pNom = document.getElementById('profesional-nombre').value.trim();
         const pMat = document.getElementById('profesional-matricula').value.trim();
+        const guardarBtn = document.getElementById('guardar-seguimiento-btn');
+
         if(!pNom || !pMat) return showModalMessage("Por favor, complete los datos del profesional.", true);
+
+        // 1. Deshabilitar botón para evitar doble envío
+        guardarBtn.disabled = true;
+        guardarBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        guardarBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i> Guardando...';
 
         const payload = {
             fecha: document.getElementById('seguimiento-fecha').value,
@@ -308,18 +304,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if(cal || obs) payload.evaluaciones.push({ motivo: titulo, calificacion: cal?.value||'', observaciones: obs||'' });
         });
 
-        mostrarCargando(true, "Guardando...");
         try {
             const res = await fetch('/api/seguimiento/guardar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
             const json = await res.json();
-            mostrarCargando(false);
+            
             if(json.success) {
-                // Al guardar, abrimos directamente el resumen para que vean lo que guardaron (Confirmación visual)
-                abrirModalResumen(payload);
-                cargarHistorial(currentPatient.DNI || currentPatient.Documento);
-                document.getElementById('observacion-profesional').value = '';
-            } else showModalMessage("Error: "+json.error, true);
-        } catch(e) { mostrarCargando(false); showModalMessage("Error conexión.", true); }
+                // 2. Mensaje Éxito -> Al dar Aceptar se abre el resumen
+                showModalMessage("✅ Informe guardado correctamente.", false, () => {
+                    // Limpiar Formulario
+                    document.getElementById('observacion-profesional').value = '';
+                    document.querySelectorAll('textarea').forEach(t => t.value = '');
+                    // Resetear Radios a "Bueno" (Opcional, o dejarlos como están)
+                    document.querySelectorAll('input[type="radio"][value="Bueno"]').forEach(r => r.checked = true);
+                    
+                    // Abrir Resumen
+                    abrirModalResumen(payload);
+                    cargarHistorial(currentPatient.DNI || currentPatient.Documento);
+
+                    // Reactivar botón
+                    guardarBtn.disabled = false;
+                    guardarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    guardarBtn.innerHTML = '<i class="fas fa-save mr-3"></i> Guardar Informe';
+                });
+            } else {
+                showModalMessage("Error servidor: "+json.error, true);
+                guardarBtn.disabled = false;
+                guardarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                guardarBtn.innerHTML = '<i class="fas fa-save mr-3"></i> Guardar Informe';
+            }
+        } catch(e) { 
+            showModalMessage("Error conexión.", true); 
+            guardarBtn.disabled = false;
+            guardarBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            guardarBtn.innerHTML = '<i class="fas fa-save mr-3"></i> Guardar Informe';
+        }
     });
     
     document.getElementById('refresh-history-btn').onclick = () => cargarHistorial(currentPatient.DNI || currentPatient.Documento);
