@@ -4,71 +4,179 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe de Seguimiento y Autocuidado</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .loader { border-right-color: #3b82f6; animation: spinner 1s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Estilo para la plantilla PDF oculta */
+        #pdf-template { display: none; }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="container mx-auto p-6 bg-white rounded-xl shadow-lg my-8 max-w-4xl">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Informe de Seguimiento y Autocuidado</h1>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="container mx-auto bg-white rounded-xl shadow-lg my-8 max-w-4xl p-6 md:p-10">
         
-        <div class="mb-6 border-b pb-4">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4">I.- Datos del Profesional</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="profesional-nombre" class="block text-gray-700 text-sm font-bold mb-2">Apellido y Nombre:</label>
-                    <input type="text" id="profesional-nombre" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                </div>
-                <div>
-                    <label for="profesional-matricula" class="block text-gray-700 text-sm font-bold mb-2">Matrícula:</label>
-                    <input type="text" id="profesional-matricula" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                </div>
-                <div>
-                    <label for="seguimiento-fecha" class="block text-gray-700 text-sm font-bold mb-2">Fecha de Seguimiento:</label>
-                    <input type="date" id="seguimiento-fecha" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" readonly>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-6 border-b pb-4">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4">II.- Datos del Afiliado bajo Módulo</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <span class="block text-gray-700 text-sm font-bold mb-2">Apellido y Nombre:</span>
-                    <span id="afiliado-nombre" class="block p-2 border rounded bg-gray-50 text-gray-700"></span>
-                </div>
-                <div>
-                    <span class="block text-gray-700 text-sm font-bold mb-2">DNI:</span>
-                    <span id="afiliado-dni" class="block p-2 border rounded bg-gray-50 text-gray-700"></span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-6 border-b pb-4">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4">III.- Motivo de Seguimiento y IV.- Evaluación del Profesional</h2>
-            <div id="motivos-seguimiento-container" class="space-y-4">
-                <p class="text-gray-500">Cargando motivos de seguimiento...</p>
-            </div>
-        </div>
-
-        <div class="mb-6 pb-4">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4">V.- Estudios respaldatorios</h2>
-            <div class="mb-4">
-                <label for="observacion-profesional" class="block text-gray-700 text-sm font-bold mb-2">Observación profesional:</label>
-                <textarea id="observacion-profesional" rows="4" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
-            </div>
-            
-        </div>
-        
-        <div class="flex justify-center space-x-4">
-            <button id="guardar-seguimiento-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline">
-                Guardar Seguimiento
+        <!-- Header Web -->
+        <div class="flex justify-between items-center border-b-4 border-blue-500 pb-3 mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-800">
+                <i class="fas fa-notes-medical text-blue-500 mr-2"></i> Seguimiento
+            </h1>
+            <button id="signout-btn" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 px-4 rounded-full shadow transition">
+                <i class="fas fa-sign-out-alt mr-1"></i> Salir
             </button>
-            <button id="cancelar-seguimiento-btn" class="bg-gray-400 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline">
+        </div>
+        
+        <!-- I. DATOS PROFESIONAL -->
+        <div class="mb-6 border border-gray-200 p-5 rounded-lg bg-gray-50">
+            <h2 class="text-lg font-bold text-gray-700 mb-3">I. Profesional y Paciente</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Profesional</label>
+                    <input type="text" id="profesional-nombre" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Matrícula</label>
+                    <input type="text" id="profesional-matricula" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Fecha</label>
+                    <input type="date" id="seguimiento-fecha" class="w-full border rounded p-2 mt-1 focus:outline-blue-500">
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                <div>
+                    <span class="text-gray-600 text-sm">Paciente:</span>
+                    <span id="afiliado-nombre" class="font-bold text-gray-800 ml-2"></span>
+                </div>
+                <div>
+                    <span class="text-gray-600 text-sm">DNI:</span>
+                    <span id="afiliado-dni" class="font-bold text-gray-800 ml-2"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- II. ALERTAS (RED FLAGS) -->
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">II. Motivos de Seguimiento (Alertas)</h2>
+            <div id="motivos-seguimiento-container" class="space-y-4">
+                <p class="text-gray-500 italic">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- III. EVALUACIÓN GENERAL (FIJOS) -->
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-gray-700 mb-4 border-b pb-2">III. Evaluación General y Hábitos</h2>
+            <div id="items-fijos-container" class="space-y-4"></div>
+        </div>
+
+        <!-- IV. OBSERVACIONES -->
+        <div class="mb-8">
+            <h2 class="text-xl font-bold text-gray-700 mb-2">IV. Conclusión Profesional</h2>
+            <textarea id="observacion-profesional" rows="4" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-blue-500" placeholder="Resumen clínico, indicaciones..."></textarea>
+        </div>
+
+        <!-- BOTONES GUARDAR -->
+        <div class="flex justify-center gap-4 mb-10">
+            <button id="guardar-seguimiento-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition transform hover:scale-105">
+                <i class="fas fa-save mr-2"></i> Guardar Informe
+            </button>
+            <button id="cancelar-seguimiento-btn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-8 rounded-lg shadow transition">
                 Cancelar
             </button>
         </div>
+
+        <!-- HISTORIAL DE INFORMES -->
+        <div class="border-t-2 border-gray-200 pt-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-700"><i class="fas fa-history mr-2"></i> Historial</h2>
+                <button id="refresh-history-btn" class="text-blue-600 hover:underline text-sm font-semibold">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+            <div id="history-list" class="grid grid-cols-1 gap-3">
+                <p class="text-gray-500 text-center py-4 bg-gray-50 rounded">Cargando historial...</p>
+            </div>
+        </div>
+
     </div>
+
+    <!-- PLANTILLA PDF OCULTA (Diseño tipo A4) -->
+    <div id="pdf-template" class="bg-white p-8" style="width: 800px; font-family: 'Arial', sans-serif; color: #333;">
+        <!-- Cabecera PDF -->
+        <div class="flex justify-between items-center border-b-2 border-blue-800 pb-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-900">INFORME DE SEGUIMIENTO</h1>
+                <p class="text-sm text-gray-500">Atención de Pacientes Crónicos</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-lg" id="pdf-fecha">DD/MM/AAAA</p>
+                <p class="text-xs text-gray-400">Generado automáticamente</p>
+            </div>
+        </div>
+
+        <!-- Datos Paciente/Medico PDF -->
+        <div class="bg-blue-50 p-4 rounded mb-6 border border-blue-100">
+            <table class="w-full text-sm">
+                <tr>
+                    <td class="font-bold text-blue-800 w-1/4 py-1">PACIENTE:</td>
+                    <td class="w-1/4" id="pdf-paciente">Nombre Apellido</td>
+                    <td class="font-bold text-blue-800 w-1/4 py-1">PROFESIONAL:</td>
+                    <td class="w-1/4" id="pdf-profesional">Dr. Nombre</td>
+                </tr>
+                <tr>
+                    <td class="font-bold text-blue-800 py-1">DNI:</td>
+                    <td id="pdf-dni">12.345.678</td>
+                    <td class="font-bold text-blue-800 py-1">MATRÍCULA:</td>
+                    <td id="pdf-matricula">MP 1234</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Cuerpo del Informe -->
+        <div class="mb-6">
+            <h3 class="font-bold text-blue-900 border-b border-gray-300 mb-3 pb-1 uppercase text-sm">Evaluación Detallada</h3>
+            <table class="w-full text-sm border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 text-left">
+                        <th class="p-2 border border-gray-300 w-1/3">Ítem Evaluado</th>
+                        <th class="p-2 border border-gray-300 w-1/6">Estado</th>
+                        <th class="p-2 border border-gray-300">Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-table-body">
+                    <!-- Se llena dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Observacion Final -->
+        <div class="mb-10">
+            <h3 class="font-bold text-blue-900 border-b border-gray-300 mb-3 pb-1 uppercase text-sm">Conclusión / Indicaciones</h3>
+            <div id="pdf-observacion" class="p-4 border border-gray-300 rounded bg-gray-50 text-sm italic min-h-[80px]">
+                Sin observaciones generales.
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-xs text-gray-400 border-t pt-4 mt-auto">
+            <p>Documento de uso interno para seguimiento de pacientes crónicos.</p>
+        </div>
+    </div>
+
+    <!-- Modal de Carga -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl flex items-center space-x-4">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
+            <p class="text-gray-700 font-semibold" id="loading-text">Procesando...</p>
+        </div>
+    </div>
+
+    <!-- Modal Mensajes -->
+    <div id="message-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center z-50"></div>
 
     <script src="seguimiento-formulario.js"></script>
 </body>
