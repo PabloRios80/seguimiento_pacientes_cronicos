@@ -6,11 +6,11 @@ const { google } = require('googleapis');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const v8 = require('v8');
+//const v8 = require('v8');
 
 // --- CONFIGURACIÓN DE MEMORIA ---
-v8.setFlagsFromString('--max-old-space-size=8192');
-setInterval(() => { if (global.gc) global.gc(); }, 30000);
+//v8.setFlagsFromString('--max-old-space-size=8192');
+//setInterval(() => { if (global.gc) global.gc(); }, 30000);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
