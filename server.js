@@ -1,8 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
 const { GoogleSpreadsheet } = require('google-spreadsheet'); // Para escribir (Seguimiento)
-const { google } = require('googleapis'); // Para leer rápido (Pacientes)
+const { google } = require('googleapis'); // Para leer (Base Grande)
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -11,16 +10,80 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const API_BASE_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 
-// --- CONSTANTES ---
-const PACIENTES_SHEET_ID = '15YPfBG9PBfN3nBW5xXJYjIXEgYIS9z71pI0VpeCtAAU'; // Hoja Pesada (Lectura)
-const SEGUIMIENTO_SHEET_ID = '1Yoxu-UgFcU09AWznbQEx9pZGcUQo9gINiVHOhuwfFZ8'; // Hoja Nueva (Escritura)
+// ============================================================================
+// ⚠️ CONFIGURACIÓN DE LA MIGRACIÓN
+// ============================================================================
 
-// --- VARIABLES GLOBALES ---
-let docSeguimiento; // Usaremos GoogleSpreadsheet solo para escribir (es más fácil)
-let sheetsApiClient; // Usaremos la API nativa para leer pacientes (es más ligera)
+// 1. ID DE LA HOJA NUEVA ("Produccion Dia Preventivo PR")
+const NUEVA_BASE_ID = '1N9grVSOQgG_-XSJBZVs02V5kSEeq23bA7pY7yBfXLPw'; 
+
+// 2. ID DE LA HOJA DE ESCRITURA (No cambia)
+const SEGUIMIENTO_SHEET_ID = '1Yoxu-UgFcU09AWznbQEx9pZGcUQo9gINiVHOhuwfFZ8';
+
+// 3. DICCIONARIO MAESTRO DE TRADUCCIÓN (Vital para que no se rompa nada)
+// Izquierda: Nombre que usa el SISTEMA (Viejo) || Derecha: Nombre en la HOJA NUEVA
+const MAPEO_CAMPOS = {
+    // Datos Personales
+    'DNI': 'DNI',
+    'Fecha_cierre_DP': 'FECHAX', // La fecha clave
+    'Edad': 'Edad',
+    'Sexo': 'Sexo',
+    
+    // El sistema espera Nombre y Apellido separados, pero la hoja nueva los tiene juntos.
+    // Mapeamos ambos a la misma columna y luego el código los arregla.
+    'Nombre': 'apellido y nombre',
+    'Apellido': 'apellido y nombre', 
+
+    // Campos Clínicos (Cuidado con tildes y espacios)
+    'Presion_Arterial': 'Presión Arterial',
+    'IMC': 'IMC',
+    'Agudeza_visual': 'Agudeza visual',
+    'Control_odontologico': 'Control Odontológico - Adultos',
+    'Valor_CPO': 'Valor CPO',
+    'Alimentacion_saludable': 'Alimentación saludable',
+    'Actividad_fisica': 'Actividad física',
+    'Seguridad_vial': 'Seguridad vial',
+    'Caidas_en_adultos_mayores': 'Caídas en adultos mayores',
+    'Acido_folico': 'Ácido fólico',
+    'Abuso_alcohol': 'Abuso alcohol',
+    'Tabaco': 'Tabaco',
+    'Violencia': 'Violencia',
+    'Depresion': 'Depresión',
+    'ITS': 'ITS',
+    'Hepatitis_B': 'Hepatitis B',
+    'Hepatitis_C': 'Hepatitis C',
+    'VIH': 'VIH',
+    'Dislipemias': 'Dislipemias',
+    'Diabetes': 'Diabetes',
+    
+    // Cánceres y Estudios
+    'Cancer_cervico_uterino_HPV': 'Cáncer cérvico uterino - HPV',
+    'Cancer_cervico_uterino_PAP': 'Cáncer cérvico uterino - PAP',
+    'Cancer_colon_SOMF': 'SOMF', // Ojo aquí, cambio de nombre importante
+    'Cancer_colon_Colonoscopia': 'Cáncer colon - Colonoscopía',
+    'Cancer_mama_Mamografia': 'Cáncer mama - Mamografía',
+    'Cancer_mama_Eco_mamaria': 'Cancer_mama_Eco_mamaria',
+    
+    // Otros
+    'ERC': 'ERC',
+    'EPOC': 'EPOC',
+    'Aneurisma_aorta': 'Aneurisma aorta',
+    'Osteoporosis': 'Osteoporosis',
+    'Estratificacion_riesgo_CV': 'Estratificación riesgo CV',
+    'Aspirina': 'Aspirina',
+    'Inmunizaciones': 'Inmunizaciones',
+    'Profesional': 'Profesional',
+    'VDRL': 'VDRL',
+    'Prostata_PSA': 'Próstata - PSA',
+    'Chagas': 'Chagas'
+};
+
+// ============================================================================
+
+let docSeguimiento; 
+let sheetsApiClient; 
 let credentials;
 
-// --- MIDDLEWARE ---
 app.use(express.json());
 app.use(express.static('public'));
 app.use(session({
@@ -39,11 +102,9 @@ async function initializeGoogleSheets() {
         } else {
             credentials = require('./credentials.json');
         }
-        
-        // Formatear clave privada correctamente
         const privateKey = credentials.private_key.replace(/\\n/g, '\n');
 
-        // 1. CONFIGURAR CLIENTE DE API NATIVA (Para Lectura Ultraligera)
+        // 1. Cliente API Nativa (Lectura Ultraligera)
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: credentials.client_email,
@@ -52,9 +113,16 @@ async function initializeGoogleSheets() {
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
         sheetsApiClient = google.sheets({ version: 'v4', auth });
-        console.log('✅ Cliente API Nativa listo (Lectura optimizada).');
+        
+        try {
+            const meta = await sheetsApiClient.spreadsheets.get({ spreadsheetId: NUEVA_BASE_ID });
+            console.log(`✅ Conectado a Base Grande (Lectura): "${meta.data.properties.title}"`);
+        } catch (e) {
+            console.error(`❌ ERROR CRÍTICO: No se puede leer la Base Grande.`);
+            console.error('👉 Solución: Verifica el ID y comparte la hoja con el email del robot.');
+        }
 
-        // 2. CONFIGURAR CLIENTE DE ESCRITURA (Para Seguimiento)
+        // 2. Cliente Escritura (Seguimiento)
         docSeguimiento = new GoogleSpreadsheet(SEGUIMIENTO_SHEET_ID);
         await docSeguimiento.useServiceAccountAuth({
             client_email: credentials.client_email,
@@ -62,113 +130,111 @@ async function initializeGoogleSheets() {
         });
         await docSeguimiento.loadInfo();
         console.log('✅ Hoja SEGUIMIENTO cargada (Escritura).');
-
-        // Configurar columnas si es necesario
         await configurarColumnasHoja();
 
     } catch (error) {
-        console.error('❌ Error fatal inicializando conexiones:', error);
-        // No matamos el proceso, dejamos que intente recuperarse o muestre error 500 limpio
+        console.error('❌ Error fatal arranque:', error.message);
     }
 }
 
-// --- FUNCIÓN DE LECTURA OPTIMIZADA (MEMORIA BAJA) ---
-// Esta función descarga los datos como una matriz de texto simple [[]], sin objetos pesados.
+// --- BUSCADOR INTELIGENTE CON TRADUCCIÓN ---
 async function buscarPacienteEnHoja(dniBuscado) {
     try {
-        // 1. Obtener información básica para saber el nombre de la Hoja 1
-        const metaData = await sheetsApiClient.spreadsheets.get({
-            spreadsheetId: PACIENTES_SHEET_ID
-        });
-        // Asumimos que los pacientes están en la primera pestaña (índice 0)
-        const title = metaData.data.sheets[0].properties.title;
+        // 1. Obtener datos crudos (Texto plano)
+        const metaData = await sheetsApiClient.spreadsheets.get({ spreadsheetId: NUEVA_BASE_ID });
+        const title = metaData.data.sheets[0].properties.title; // Usamos la primera pestaña
 
-        // 2. Descargar SOLO los valores (texto plano)
         const response = await sheetsApiClient.spreadsheets.values.get({
-            spreadsheetId: PACIENTES_SHEET_ID,
-            range: `${title}!A:ZZ`, // Leemos todas las columnas
+            spreadsheetId: NUEVA_BASE_ID,
+            range: `${title}!A:ZZ`, 
         });
 
         const rows = response.data.values;
         if (!rows || rows.length === 0) return null;
 
-        // 3. Procesar encabezados (Fila 0)
-        const headers = rows[0];
+        const headers = rows[0]; // Encabezados reales de la hoja nueva
         
-        // 4. Buscar DNI en memoria (Es texto plano, muy rápido)
-        // Buscamos índice de columna DNI o Documento
-        const dniIndex = headers.findIndex(h => h && (h.toLowerCase() === 'dni' || h.toLowerCase() === 'documento'));
+        // 2. Encontrar la columna DNI real
+        // Buscamos la columna mapeada como 'DNI' en nuestro diccionario
+        const nombreColumnaDNI = MAPEO_CAMPOS['DNI']; 
+        const idxDNI = headers.findIndex(h => h && h.toLowerCase().trim() === nombreColumnaDNI.toLowerCase().trim());
         
-        if (dniIndex === -1) {
-            console.error('Columna DNI no encontrada en la hoja de pacientes');
+        if (idxDNI === -1) {
+            console.error(`❌ ERROR: No encuentro la columna "${nombreColumnaDNI}" en la hoja nueva.`);
             return null;
         }
 
         const dniString = String(dniBuscado).trim();
 
-        // Filtramos las filas que coincidan
-        // rows.slice(1) evita el encabezado
+        // 3. Filtrar filas (Búsqueda rápida)
+        // Normalizamos quitando puntos para comparar (ej: 30.123.456 vs 30123456)
         const encontrados = rows.slice(1).filter(row => {
-            const val = row[dniIndex] ? String(row[dniIndex]).trim() : '';
-            return val === dniString;
+            const valEnBase = row[idxDNI] ? String(row[idxDNI]).replace(/\./g, '').trim() : '';
+            const valBuscado = dniString.replace(/\./g, '').trim();
+            return valEnBase === valBuscado;
         });
 
         if (encontrados.length === 0) return null;
 
-        // 5. Convertir el array encontrado a Objeto bonito para el frontend
-        // Mapeamos [ 'Juan', '123' ] -> { Nombre: 'Juan', DNI: '123' }
-        const resultadosMapeados = encontrados.map(row => {
-            const obj = {};
-            headers.forEach((header, index) => {
-                if (header) obj[header] = row[index] || '';
+        // 4. TRADUCCIÓN DE RESULTADOS (La magia)
+        const resultadosTraducidos = encontrados.map(row => {
+            const pacienteObj = {};
+
+            // Recorremos nuestro diccionario de campos que la App necesita
+            Object.keys(MAPEO_CAMPOS).forEach(keyApp => {
+                const nombreColumnaExcel = MAPEO_CAMPOS[keyApp];
+                
+                // Buscamos dónde está esa columna en el Excel
+                const idx = headers.findIndex(h => h && h.toLowerCase().trim() === nombreColumnaExcel.toLowerCase().trim());
+                
+                if (idx !== -1) {
+                    pacienteObj[keyApp] = row[idx] || ''; // Asignamos el valor
+                } else {
+                    pacienteObj[keyApp] = ''; // Si no existe la columna, devolvemos vacío
+                }
             });
-            return obj;
+
+            // FIX ESPECIAL: Separar Nombre y Apellido si vienen juntos
+            if (pacienteObj['Nombre'] && pacienteObj['Nombre'] === pacienteObj['Apellido']) {
+                // Si ambos apuntan a 'apellido y nombre', el valor será ej: "PEREZ JUAN"
+                // Dejamos el nombre completo en 'Nombre' y vaciamos 'Apellido' para que el frontend
+                // muestre "PEREZ JUAN " (unido) en lugar de "PEREZ JUAN PEREZ JUAN"
+                pacienteObj['Apellido'] = ''; 
+            }
+
+            return pacienteObj;
         });
 
-        return resultadosMapeados;
+        return resultadosTraducidos;
 
     } catch (error) {
-        console.error('Error en lectura ligera:', error);
+        console.error('Error lectura Base Grande:', error);
         throw error;
     }
 }
 
-// --- CONFIGURACIÓN DE COLUMNAS (SEGUIMIENTO) ---
+// --- CONFIGURACIÓN COLUMNAS ESCRITURA ---
 async function configurarColumnasHoja() {
     if (!docSeguimiento) return;
     try {
         const headers = ['Fecha_Seguimiento', 'DNI_Paciente', 'Nombre_Paciente', 'Profesional_Apellido_Nombre', 'Profesional_Matricula'];
-        
-        // Lista Maestra
         const TEMAS = [
-            "Diabetes", "Dislipemia", "Tabaquismo", "Actividad_Fisica", 
-            "Hipertension", "IMC", "Agudeza_visual", "Control_Odontologico", 
-            "Alimentacion_Saludable", "Prevencion_de_Caidas", "Acido_Folico", 
-            "Seguridad_Vial", "Consumo_de_Alcohol", "Violencia", "Depresion", 
-            "Infecciones_de_Transmision_Sexual", "Hepatitis_B", "Hepatitis_C", 
-            "VIH", "Test_de_HPV", "Papanicolaou", "SOMF", "Colonoscopia", 
-            "Mamografia", "PSA", "ERC", "EPOC", "Aneurisma_aorta", 
-            "Osteoporosis", "Aspirina", "Riesgo_Cardiovascular",
+            "Diabetes", "Dislipemia", "Tabaquismo", "Actividad_Fisica", "Hipertension", "IMC", "Agudeza_visual", "Control_Odontologico", 
+            "Alimentacion_Saludable", "Prevencion_de_Caidas", "Acido_Folico", "Seguridad_Vial", "Consumo_de_Alcohol", "Violencia", "Depresion", 
+            "Infecciones_de_Transmision_Sexual", "Hepatitis_B", "Hepatitis_C", "VIH", "Test_de_HPV", "Papanicolaou", "SOMF", "Colonoscopia", 
+            "Mamografia", "PSA", "ERC", "EPOC", "Aneurisma_aorta", "Osteoporosis", "Aspirina", "Riesgo_Cardiovascular",
             "Gestion_Emocional", "Adherencia_Tratamiento", "Redes_Apoyo", "Actividad_Descanso"
         ];
-
-        TEMAS.forEach(tema => {
-            headers.push(`${tema}_Calificacion`);
-            headers.push(`${tema}_Observaciones`);
-        });
+        TEMAS.forEach(tema => { headers.push(`${tema}_Calificacion`); headers.push(`${tema}_Observaciones`); });
         headers.push('Observacion_Profesional');
 
         let sheet = docSeguimiento.sheetsByTitle['Seguimiento'];
-        if (!sheet) {
-            sheet = await docSeguimiento.addSheet({ title: 'Seguimiento', headerValues: headers });
-        } else {
-            await sheet.loadHeaderRow();
-            if (!sheet.headerValues || sheet.headerValues.length === 0) await sheet.setHeaderRow(headers);
-        }
-    } catch (e) { console.error('Warn config columnas:', e.message); }
+        if (!sheet) { sheet = await docSeguimiento.addSheet({ title: 'Seguimiento', headerValues: headers }); }
+        else { await sheet.loadHeaderRow(); if (!sheet.headerValues || sheet.headerValues.length === 0) await sheet.setHeaderRow(headers); }
+    } catch (e) { console.error('Warn columnas:', e.message); }
 }
 
-// --- AUTH GOOGLE ---
+// --- AUTH ---
 app.get('/auth/google', (req, res, next) => { req.session.returnTo = req.query.returnTo || '/'; next(); }, passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/login.html' }), (req, res) => { const url = req.session.returnTo || '/'; delete req.session.returnTo; res.redirect(url); });
 passport.use(new GoogleStrategy({ clientID: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, callbackURL: process.env.GOOGLE_CALLBACK_URL }, (a, r, p, d) => d(null, p)));
@@ -176,79 +242,77 @@ passport.serializeUser((u, d) => d(null, u));
 passport.deserializeUser((o, d) => d(null, o));
 app.get('/api/user', (req, res) => req.isAuthenticated() ? res.json({ isLoggedIn: true, user: { name: req.user.displayName, email: req.user.emails[0].value } }) : res.json({ isLoggedIn: false }));
 
-// --- RUTA BUSCAR (OPTIMIZADA) ---
+// --- RUTA BUSCAR ---
 app.post('/buscar', async (req, res) => {
     try {
         const dni = String(req.body.dni).trim();
-        console.log(`🔎 Buscando DNI (Modo Ligero): ${dni}`);
+        console.log(`🔎 Buscando DNI: ${dni}`);
 
-        // Usamos la nueva función ligera
         const resultados = await buscarPacienteEnHoja(dni);
         
         if (!resultados || resultados.length === 0) {
             return res.json({ error: 'DNI no encontrado en el padrón.' });
         }
 
-        // Ordenar por fecha (Fecha_cierre_DP)
+        // Ordenar por fecha
         const parseDate = (d) => {
              if(!d) return new Date(NaN);
-             const p = d.split('/');
-             return p.length===3 ? new Date(p[2], p[1]-1, p[0]) : new Date(NaN);
+             // Intenta detectar formato con barra / o guion -
+             const p = d.includes('/') ? d.split('/') : d.split('-'); 
+             // Asumimos DD/MM/YYYY o YYYY-MM-DD según longitud
+             if (p[0].length === 4) return new Date(p[0], p[1]-1, p[2]); // YYYY-MM-DD
+             return p.length===3 ? new Date(p[2], p[1]-1, p[0]) : new Date(NaN); // DD/MM/YYYY
         };
-        resultados.sort((a, b) => parseDate(b['Fecha_cierre_DP']).getTime() - parseDate(a['Fecha_cierre_DP']).getTime());
+        
+        try {
+            resultados.sort((a, b) => parseDate(b['Fecha_cierre_DP']).getTime() - parseDate(a['Fecha_cierre_DP']).getTime());
+        } catch (e) {}
 
-        // Retornamos el más reciente como principal y el resto como historial
         res.json({ 
             pacientePrincipal: resultados[0], 
             estudiosPrevios: resultados.slice(1).map(e => ({ fecha: e['Fecha_cierre_DP'] })) 
         });
 
     } catch (e) { 
-        console.error('Error en búsqueda:', e);
-        res.status(500).json({ error: 'Error interno al procesar la búsqueda.' }); 
+        console.error('Error búsqueda:', e);
+        res.status(500).json({ error: 'Error interno de búsqueda.' }); 
     }
 });
 
-// --- RUTA GUARDAR SEGUIMIENTO ---
+// --- RESTO DE RUTAS ---
 app.post('/api/seguimiento/guardar', async (req, res) => {
     try {
         const data = req.body;
-        if (!docSeguimiento) return res.status(500).json({ success: false, error: 'DB Seguimiento no conectada' });
+        if (!docSeguimiento) return res.status(500).json({ success: false, error: 'DB Seguimiento desconectada' });
         const sheet = docSeguimiento.sheetsByTitle['Seguimiento'];
         
-        const mapeoColumnas = {
-            "Diabetes": "Diabetes", "Dislipemia": "Dislipemia", "Tabaquismo": "Tabaquismo",
-            "Actividad Fisica": "Actividad_Fisica", "Actividad Física": "Actividad_Fisica",
-            "Hipertension": "Hipertension", "Hipertensión": "Hipertension", "IMC": "IMC",
-            "Agudeza Visual": "Agudeza_visual", "Control Odontologico": "Control_Odontologico",
-            "Alimentacion Saludable": "Alimentacion_Saludable", "Alimentación Saludable": "Alimentacion_Saludable",
-            "Prevencion de Caidas": "Prevencion_de_Caidas", "Prevención de Caídas": "Prevencion_de_Caidas",
-            "Acido Folico": "Acido_Folico", "Seguridad Vial": "Seguridad_Vial", 
-            "Consumo de Alcohol": "Consumo_de_Alcohol", "Violencia": "Violencia", "Depresion": "Depresion", 
-            "Infecciones de Transmision Sexual": "Infecciones_de_Transmision_Sexual", "Hepatitis B": "Hepatitis_B", 
-            "Hepatitis C": "Hepatitis_C", "VIH": "VIH", "Test de HPV": "Test_de_HPV", 
-            "Papanicolaou": "Papanicolaou", "SOMF": "SOMF", "Colonoscopia": "Colonoscopia", 
-            "Mamografia": "Mamografia", "PSA": "PSA", "ERC": "ERC", "EPOC": "EPOC", 
-            "Aneurisma aorta": "Aneurisma_aorta", "Osteoporosis": "Osteoporosis", "Aspirina": "Aspirina", 
-            "Riesgo Cardiovascular": "Riesgo_Cardiovascular",
-            "Gestión Emocional": "Gestion_Emocional", "Adherencia al Tratamiento": "Adherencia_Tratamiento",
+        const mapeo = {
+            "Diabetes": "Diabetes", "Dislipemia": "Dislipemia", "Tabaquismo": "Tabaquismo", "Actividad Fisica": "Actividad_Fisica", 
+            "Hipertension": "Hipertension", "IMC": "IMC", "Agudeza Visual": "Agudeza_visual", "Control Odontologico": "Control_Odontologico",
+            "Alimentacion Saludable": "Alimentacion_Saludable", "Prevencion de Caidas": "Prevencion_de_Caidas", "Acido Folico": "Acido_Folico", 
+            "Seguridad Vial": "Seguridad_Vial", "Consumo de Alcohol": "Consumo_de_Alcohol", "Violencia": "Violencia", "Depresion": "Depresion", 
+            "Infecciones de Transmision Sexual": "Infecciones_de_Transmision_Sexual", "Hepatitis B": "Hepatitis_B", "Hepatitis C": "Hepatitis_C", 
+            "VIH": "VIH", "Test de HPV": "Test_de_HPV", "Papanicolaou": "Papanicolaou", "SOMF": "SOMF", "Colonoscopia": "Colonoscopia", 
+            "Mamografia": "Mamografia", "PSA": "PSA", "ERC": "ERC", "EPOC": "EPOC", "Aneurisma aorta": "Aneurisma_aorta", 
+            "Osteoporosis": "Osteoporosis", "Aspirina": "Aspirina", "Riesgo Cardiovascular": "Riesgo_Cardiovascular",
+            "Gestión Emocional": "Gestion_Emocional", "Adherencia al Tratamiento": "Adherencia_Tratamiento", 
             "Redes de Apoyo": "Redes_Apoyo", "Actividad y Descanso": "Actividad_Descanso"
         };
 
         const row = {
-            'Fecha_Seguimiento': data.fecha, 'DNI_Paciente': data.paciente.dni,
-            'Nombre_Paciente': data.paciente.nombre, 'Profesional_Apellido_Nombre': data.profesional.nombre,
-            'Profesional_Matricula': data.profesional.matricula, 'Observacion_Profesional': data.observacionProfesional
+            'Fecha_Seguimiento': data.fecha, 'DNI_Paciente': data.paciente.dni, 'Nombre_Paciente': data.paciente.nombre,
+            'Profesional_Apellido_Nombre': data.profesional.nombre, 'Profesional_Matricula': data.profesional.matricula,
+            'Observacion_Profesional': data.observacionProfesional
         };
 
         if (data.evaluaciones) {
             data.evaluaciones.forEach(ev => {
                 let key = ev.motivo.split('(')[0].trim();
-                let col = mapeoColumnas[ev.motivo] || mapeoColumnas[key];
+                let col = mapeo[ev.motivo] || mapeo[key];
                 if (!col) {
                      const norm = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                     const match = Object.keys(mapeoColumnas).find(k => k.normalize("NFD").replace(/[\u0300-\u036f]/g, "") === norm);
-                     if (match) col = mapeoColumnas[match];
+                     const match = Object.keys(mapeo).find(k => k.normalize("NFD").replace(/[\u0300-\u036f]/g, "") === norm);
+                     if (match) col = mapeo[match];
                 }
                 if (col) { row[`${col}_Calificacion`] = ev.calificacion; row[`${col}_Observaciones`] = ev.observaciones; }
             });
@@ -258,28 +322,20 @@ app.post('/api/seguimiento/guardar', async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// --- RUTA HISTORIAL ---
 app.post('/api/seguimiento/historial', async (req, res) => {
     try {
         const { dni } = req.body;
         if (!docSeguimiento) return res.status(500).json({ success: false });
         const sheet = docSeguimiento.sheetsByTitle['Seguimiento'];
         if (!sheet) return res.json({ success: true, historial: [] });
-
         await sheet.loadHeaderRow();
-        const rows = await sheet.getRows(); // Aquí sí usamos getRows porque la hoja de seguimiento es ligera aún
-        const historial = rows
-            .filter(r => String(r['DNI_Paciente']).trim() === String(dni).trim())
-            .map(r => {
-                const d = {}; sheet.headerValues.forEach(h => d[h] = r[h]); return d;
-            });
-        
+        const rows = await sheet.getRows();
+        const historial = rows.filter(r => String(r['DNI_Paciente']).trim() === String(dni).trim()).map(r => { const d = {}; sheet.headerValues.forEach(h => d[h] = r[h]); return d; });
         historial.sort((a, b) => new Date(b.Fecha_Seguimiento) - new Date(a.Fecha_Seguimiento));
         res.json({ success: true, historial });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// --- INICIO ---
 initializeGoogleSheets().then(() => {
-    app.listen(PORT, () => console.log(`✅ Servidor optimizado listo en ${API_BASE_URL}`));
+    app.listen(PORT, () => console.log(`✅ Servidor migrado listo en ${API_BASE_URL}`));
 });
