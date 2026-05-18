@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRedFlags = new Set();
     let currentPatientDNI = null;
     let allFetchedStudies = [];
+    const advertenciasPorDNI = {};
 
     // --- CÓDIGO CLAVE CORREGIDO: DELEGACIÓN DE EVENTOS ---
     // Este bloque se ejecuta una sola vez al cargar la página.
@@ -226,103 +227,166 @@ document.addEventListener('DOMContentLoaded', () => {
             previousStudiesMessageDiv.innerHTML = '';
         }
         resetProfile();
+try {
+    console.log('Iniciando búsqueda para DNI:', dni);
+    const response = await fetch('/api/verificar-seguimiento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni })
+    });
+    const data = await response.json();
+    console.log('DEBUG APP.JS: Datos recibidos:', data);
 
-        try {
-            console.log('Iniciando búsqueda para DNI:', dni);
-            const response = await fetch('/buscar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dni })
+    // Limpiar mensajes anteriores
+    const previousStudiesMessageDiv = document.getElementById('previous-studies-message');
+    const mensajesDiv = document.getElementById('mensajes-seguimiento');
+    if (mensajesDiv) mensajesDiv.innerHTML = '';
+    //if (data.bloqueado) {
+    //window._datosBloqueoActual = data.ultimoDP;
+    //window._iaposBloqueoActual = data.iapos;
+    
+    //const dni = dniInput.value.trim();
+    //window.advertenciasPorDNI = window.advertenciasPorDNI || {};
+    //const intentos = window.advertenciasPorDNI[dni] || 0;
+    
+    let mensaje = '';
+    if (data.motivoBloqueo === 'NO_DP') {
+        document.getElementById('alerta-bloqueo-texto').textContent = 
+            '🚫 Este afiliado no tiene Día Preventivo previo. No puede acceder al seguimiento crónico.';
+        document.getElementById('alerta-bloqueo').classList.remove('hidden');
+        [riskAssessmentDiv, cancerPreventionDiv, infectiousDiseasesDiv, healthyHabitsDiv,
+        dentalHealthDiv, mentalHealthDiv, renalHealthDiv, visualHealthDiv, epocSectionDiv,
+        aneurismaSectionDiv, osteoporosisSectionDiv, aspirinaSectionDiv].forEach(div => {
+            if (div) div.style.display = 'none';
+        });
+        resetProfile();
+        return;
+    }
+    if (data.motivoBloqueo === 'DP_VENCIDO') {
+        document.getElementById('alerta-bloqueo-texto').textContent = 
+            `⚠️ Último DP: ${data.ultimoDP.fechax} — hace más de 1 año. El afiliado debe renovar su DP próximamente.`;
+        document.getElementById('alerta-bloqueo').classList.remove('hidden');
+        document.getElementById('alerta-bloqueo').className = 
+            'fixed top-0 left-0 w-full z-50 bg-yellow-500 text-white p-4 text-center font-bold text-lg shadow-lg';
+        // NO hacemos return — dejamos que continúe
+    }
+
+    // Mostrar datos del paciente desde IAPOS
+    if (data.iapos?.esActivo) {
+        const partes = (data.iapos.nombre || '').split(',');
+        currentPatientDNI = dni;
+        window._currentPatientDNI = dni;
+        currentPatientData = data.ultimoDP;
+
+        // Mostrar alertas clínicas
+        if (data.alertas?.length > 0 && previousStudiesMessageDiv) {
+            let html = '<div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-3">';
+            html += '<p class="font-bold text-yellow-800 mb-2">⚠️ Alertas Clínicas:</p>';
+            data.alertas.forEach(a => {
+                const color = a.tipo === 'URGENTE' ? 'text-red-600' : 'text-yellow-700';
+                html += `<p class="${color} text-sm">${a.mensaje}</p>`;
             });
-            const data = await response.json();
-            console.log('DEBUG APP.JS: Datos recibidos del servidor:', data);
+            html += `<p class="text-xs text-gray-500 mt-2">Seguimientos desde último DP: ${data.cantSeguimientos}/4</p>`;
+            html += '</div>';
+        if (data.historialDP?.length > 1) {
+            let html = '<p class="text-yellow-700 font-semibold mb-2"><i class="fas fa-history mr-2"></i>DPs anteriores:</p><ul class="list-disc list-inside ml-4">';
+            data.historialDP.slice(1).forEach(dp => {
+            html += `<li class="text-sm cursor-pointer text-blue-600 hover:underline" 
+                        onclick="cargarDPAnterior(${JSON.stringify(dp).replace(/'/g, "\\'")})">
+                        ${dp.fechax} — ${dp.tipo || 'Adultos'}
+                    </li>`;
+            });
+            html += '</ul>';
+            previousStudiesMessageDiv.innerHTML += html;
+        }
 
-            if (data.error) {
-                console.log('DEBUG APP.JS: Servidor reporta error:', data.error);
-                resultDiv.innerHTML = `<p class="text-center text-red-500 py-8">${data.error}</p>`;
-                resultDiv.classList.remove('hidden');
-                resultDiv.style.display = 'block';
-                resetProfile();
-            } else if (data.pacientePrincipal && (data.pacientePrincipal.DNI || data.pacientePrincipal.Documento)) {
-                console.log('DEBUG APP.JS: Servidor devolvió datos de paciente principal.');
-                const pacientePrincipal = data.pacientePrincipal;
-                currentPatientDNI = pacientePrincipal.DNI || pacientePrincipal.Documento;
-                currentPatientData = data.pacientePrincipal;
-                currentRedFlags.clear();
+            previousStudiesMessageDiv.innerHTML = html;
+            previousStudiesMessageDiv.style.display = 'block';
+        }
 
-                if (resultDiv) {
-                    resultDiv.classList.add('hidden');
-                }
-                if (riskAssessmentDiv) { riskAssessmentDiv.style.display = 'block'; }
-                if (cancerPreventionDiv) { cancerPreventionDiv.style.display = 'block'; }
-                if (infectiousDiseasesDiv) { infectiousDiseasesDiv.style.display = 'block'; }
-                if (healthyHabitsDiv) { healthyHabitsDiv.style.display = 'block'; }
-                if (dentalHealthDiv) { dentalHealthDiv.style.display = 'block'; }
-                if (mentalHealthDiv) { mentalHealthDiv.style.display = 'block'; }
-                if (renalHealthDiv) { renalHealthDiv.style.display = 'block'; }
-                if (visualHealthDiv) { visualHealthDiv.style.display = 'block'; }
-                if (epocSectionDiv) { epocSectionDiv.style.display = 'block'; }
-                if (aneurismaSectionDiv) { aneurismaSectionDiv.style.display = 'block'; }
-                if (osteoporosisSectionDiv) { osteoporosisSectionDiv.style.display = 'block'; }
-                if (aspirinaSectionDiv) { aspirinaSectionDiv.style.display = 'block'; }
+        // Mostrar secciones del formulario
+        if (resultDiv) resultDiv.classList.add('hidden');
+        [riskAssessmentDiv, cancerPreventionDiv, infectiousDiseasesDiv, healthyHabitsDiv, 
+            dentalHealthDiv, mentalHealthDiv, renalHealthDiv, visualHealthDiv, epocSectionDiv, 
+            aneurismaSectionDiv, osteoporosisSectionDiv, aspirinaSectionDiv].forEach(div => {
+            if (div) div.style.display = 'block';
+        });
 
-                if (estudiosComplementariosSeccion) {
-                    estudiosComplementariosSeccion.classList.remove('hidden');
-                    resultadosEstudiosPacienteDiv.innerHTML = '<p class="text-gray-600">Haz clic en "Ver Estudios" para cargar los informes complementarios.</p>';
-                    verEstudiosBtn.disabled = false;
-                }
-                setTimeout(() => {
-                    updateProfile(pacientePrincipal);
-                    showResults(pacientePrincipal);
-                    evaluateCardiovascularRisk(pacientePrincipal);
-                    evaluateCancerPrevention(pacientePrincipal);
-                    evaluateInfectiousDiseases(pacientePrincipal);
-                    evaluateHealthyHabits(pacientePrincipal);
-                    evaluateDentalHealth(pacientePrincipal);
-                    evaluateMentalHealth(pacientePrincipal);
-                    evaluateRenalHealth(pacientePrincipal);
-                    evaluateEPOC(pacientePrincipal);
-                    evaluateAneurisma(pacientePrincipal);
-                    evaluateOsteoporosis(pacientePrincipal);
-                    evaluateAspirina(pacientePrincipal);
-                    evaluateVisualHealth(pacientePrincipal);
-                }, 50);
+        if (estudiosComplementariosSeccion) {
+            estudiosComplementariosSeccion.classList.remove('hidden');
+            resultadosEstudiosPacienteDiv.innerHTML = '<p class="text-gray-600">Haz clic en "Ver Estudios" para cargar los informes complementarios.</p>';
+            verEstudiosBtn.disabled = false;
+        }
+// Adaptar datos de Supabase al formato que esperan las funciones
+const pacienteFormateado = {
+    ...data.ultimoDP,
+    Nombre: data.iapos?.nombre?.split(',')[1]?.trim() || '',
+    Apellido: data.iapos?.nombre?.split(',')[0]?.trim() || '',
+    Edad: data.iapos?.edad || data.ultimoDP?.edad || '',
+    DNI: dni,
+    Fecha_cierre_DP: data.ultimoDP?.fechax,
+    // Mapear campos de Supabase a nombres que esperan las funciones evaluate*
+    Presion_Arterial: data.ultimoDP?.presion_arterial,
+    IMC: data.ultimoDP?.imc,
+    Diabetes: data.ultimoDP?.diabetes,
+    Dislipemias: data.ultimoDP?.dislipemias,
+    Tabaco: data.ultimoDP?.tabaco,
+    Cancer_cervico_uterino_HPV: data.ultimoDP?.cancer_cervico_hpv,
+    Cancer_cervico_uterino_PAP: data.ultimoDP?.cancer_cervico_pap,
+    Cancer_colon_SOMF: data.ultimoDP?.somf,
+    Cancer_colon_Colonoscopia: data.ultimoDP?.cancer_colon_colonoscopia,
+    Cancer_mama_Mamografia: data.ultimoDP?.cancer_mama_mamografia,
+    Cancer_mama_Eco_mamaria: data.ultimoDP?.cancer_mama_eco_mamaria,
+    VIH: data.ultimoDP?.vih,
+    Hepatitis_B: data.ultimoDP?.hepatitis_b,
+    Hepatitis_C: data.ultimoDP?.hepatitis_c,
+    VDRL: data.ultimoDP?.vdrl,
+    Chagas: data.ultimoDP?.chagas,
+    Prostata_PSA: data.ultimoDP?.prostata_psa,
+    ERC: data.ultimoDP?.erc,
+    EPOC: data.ultimoDP?.epoc,
+    Aneurisma_aorta: data.ultimoDP?.aneurisma_aorta,
+    Osteoporosis: data.ultimoDP?.osteoporosis,
+    Aspirina: data.ultimoDP?.aspirina,
+    Actividad_fisica: data.ultimoDP?.actividad_fisica,
+    Alimentacion_saludable: data.ultimoDP?.alimentacion_saludable,
+    Abuso_alcohol: data.ultimoDP?.abuso_alcohol,
+    Tabaco: data.ultimoDP?.tabaco,
+    Violencia: data.ultimoDP?.violencia,
+    Depresion: data.ultimoDP?.depresion,
+    Control_odontologico: data.ultimoDP?.control_odontologico_adultos,
+    Agudeza_visual: data.ultimoDP?.agudeza_visual,
+    Inmunizaciones: data.ultimoDP?.inmunizaciones,
+    Estratificacion_riesgo_CV: data.ultimoDP?.estratificacion_riesgo_cv
+};
 
-                const estudiosPrevios = data.estudiosPrevios;
-                if (estudiosPrevios && estudiosPrevios.length > 0) {
-                    console.log('DEBUG APP.JS: ¡Paciente con estudios previos encontrados!', estudiosPrevios);
-                    if (previousStudiesMessageDiv) {
-                        previousStudiesMessageDiv.style.display = 'block';
-                        previousStudiesMessageDiv.innerHTML = `
-                            <p class="text-yellow-700 font-semibold mb-2">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>Existen otros Día Preventivos registrados:
-                            </p>
-                            <ul class="list-disc list-inside ml-4">
-                                ${estudiosPrevios.map(estudio => `<li>${estudio.fecha}</li>`).join('')}
-                            </ul>
-                            <p class="text-sm text-gray-500 mt-2">
-                                El estudio mostrado actualmente corresponde a la fecha más reciente.
-                            </p>
-                        `;
-                    } else {
-                        console.error("DEBUG APP.JS: Div 'previous-studies-message' no encontrado en el HTML.");
-                    }
-                } else {
-                    if (previousStudiesMessageDiv) {
-                        previousStudiesMessageDiv.style.display = 'none';
-                        previousStudiesMessageDiv.innerHTML = '';
-                    }
-                }
-            } else {
-                console.error('DEBUG APP.JS: Respuesta inesperada del servidor (no es error ni datos de paciente válidos):', data);
-                resultDiv.innerHTML = '<p class="text-center text-red-500 py-8">Error: Formato de datos inesperado del servidor.</p>';
-                resultDiv.classList.remove('hidden');
-                resultDiv.style.display = 'block';
-                currentPatientData = null;
-                currentRedFlags.clear();
-                resetProfile();
-            }
-        } catch (error) {
+currentPatientData = pacienteFormateado;
+window._currentPatientData = pacienteFormateado;
+
+setTimeout(() => {
+    updateProfile(pacienteFormateado);
+    showResults(pacienteFormateado);
+    evaluateCardiovascularRisk(pacienteFormateado);
+    evaluateCancerPrevention(pacienteFormateado);
+    evaluateInfectiousDiseases(pacienteFormateado);
+    evaluateHealthyHabits(pacienteFormateado);
+    evaluateDentalHealth(pacienteFormateado);
+    evaluateMentalHealth(pacienteFormateado);
+    evaluateRenalHealth(pacienteFormateado);
+    evaluateEPOC(pacienteFormateado);
+    evaluateAneurisma(pacienteFormateado);
+    evaluateOsteoporosis(pacienteFormateado);
+    evaluateAspirina(pacienteFormateado);
+    evaluateVisualHealth(pacienteFormateado);
+}, 50);
+    } else {
+        resultDiv.innerHTML = '<p class="text-center text-red-500 py-8">⚠️ El afiliado no está activo en IAPOS.</p>';
+        resultDiv.classList.remove('hidden');
+        resultDiv.style.display = 'block';
+        resetProfile();
+    }
+
+    } catch (error) {
             console.error('Error en la consulta:', error);
             resultDiv.innerHTML = '<p class="text-center text-red-500 py-8">Error al conectar con el servidor</p>';
             resultDiv.classList.remove('hidden');
@@ -2225,6 +2289,10 @@ function exportarResultados() {
         return;
     }
 
+    document.addEventListener('cargarDPAnterior', (e) => {
+    cargarDPAnterior(e.detail);
+});
+
     // Crear una nueva hoja de cálculo
     const wb = XLSX.utils.book_new();
     const ws_data = [Object.keys(dataParaExportar[0])]; // Encabezados de las columnas
@@ -2239,3 +2307,65 @@ function exportarResultados() {
 }
     }
     });
+
+    function cargarDPAnterior(dp) {
+    const pacienteFormateado = {
+        ...dp,
+        Nombre: window._currentPatientData?.Nombre || '',
+        Apellido: window._currentPatientData?.Apellido || '',
+        DNI: window._currentPatientDNI,
+        Fecha_cierre_DP: dp.fechax,
+        Presion_Arterial: dp.presion_arterial,
+        IMC: dp.imc,
+        Diabetes: dp.diabetes,
+        Dislipemias: dp.dislipemias,
+        Cancer_cervico_uterino_HPV: dp.cancer_cervico_hpv,
+        Cancer_cervico_uterino_PAP: dp.cancer_cervico_pap,
+        Cancer_colon_SOMF: dp.somf,
+        VIH: dp.vih,
+        Hepatitis_B: dp.hepatitis_b,
+        Hepatitis_C: dp.hepatitis_c,
+        ERC: dp.erc,
+        EPOC: dp.epoc,
+        Aneurisma_aorta: dp.aneurisma_aorta,
+        Osteoporosis: dp.osteoporosis
+    };
+    
+    setTimeout(() => {
+        updateProfile(pacienteFormateado);
+        showResults(pacienteFormateado);
+        evaluateCardiovascularRisk(pacienteFormateado);
+        evaluateCancerPrevention(pacienteFormateado);
+        evaluateInfectiousDiseases(pacienteFormateado);
+        evaluateHealthyHabits(pacienteFormateado);
+        evaluateDentalHealth(pacienteFormateado);
+        evaluateMentalHealth(pacienteFormateado);
+        evaluateRenalHealth(pacienteFormateado);
+        evaluateEPOC(pacienteFormateado);
+        evaluateAneurisma(pacienteFormateado);
+        evaluateOsteoporosis(pacienteFormateado);
+        evaluateAspirina(pacienteFormateado);
+        evaluateVisualHealth(pacienteFormateado);
+    }, 50);
+}
+    // FUERA del DOMContentLoaded
+function continuarPeseMalBloqueo() {
+    const dni = document.getElementById('dni').value.trim();
+    window.advertenciasPorDNI = window.advertenciasPorDNI || {};
+    window.advertenciasPorDNI[dni] = (window.advertenciasPorDNI[dni] || 0) + 1;
+    document.getElementById('alerta-bloqueo').classList.add('hidden');
+    
+    if (window.advertenciasPorDNI[dni] >= 3) {
+        document.getElementById('alerta-bloqueo-texto').textContent = 
+            '🚫 BLOQUEO DEFINITIVO — Este afiliado superó el límite. Contacte al coordinador.';
+        document.getElementById('btn-continuar-igual').classList.add('hidden');
+        document.getElementById('alerta-bloqueo').classList.remove('hidden');
+        return;
+    }
+    
+    if (window._datosBloqueoActual) {
+    document.dispatchEvent(new CustomEvent('cargarDPAnterior', { 
+        detail: window._datosBloqueoActual 
+    }));
+}
+}

@@ -10,6 +10,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const API_BASE_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 
+const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
+
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
+);
+
 // ============================================================================
 // ⚠️ CONFIGURACIÓN DE LA MIGRACIÓN
 // ============================================================================
@@ -318,6 +326,54 @@ app.post('/api/seguimiento/guardar', async (req, res) => {
             });
         }
         await sheet.addRow(row);
+        // Guardar en Supabase
+try {
+    const supabaseRow = {
+        fecha_seguimiento: data.fecha,
+        dni_paciente: data.paciente.dni,
+        nombre_paciente: data.paciente.nombre,
+        profesional_apellido_nombre: data.profesional.nombre,
+        profesional_matricula: data.profesional.matricula,
+        observacion_profesional: data.observacionProfesional
+    };
+
+    if (data.evaluaciones) {
+        const mapeoSupabase = {
+            "Diabetes": "diabetes", "Dislipemia": "dislipemia", "Tabaquismo": "tabaquismo",
+            "Actividad Fisica": "actividad_fisica", "Hipertension": "hipertension", "IMC": "imc",
+            "Agudeza Visual": "agudeza_visual", "Control Odontologico": "control_odontologico",
+            "Alimentacion Saludable": "alimentacion_saludable", "Prevencion de Caidas": "prevencion_caidas",
+            "Acido Folico": "acido_folico", "Seguridad Vial": "seguridad_vial",
+            "Consumo de Alcohol": "consumo_alcohol", "Violencia": "violencia", "Depresion": "depresion",
+            "Infecciones de Transmision Sexual": "its", "Hepatitis B": "hepatitis_b",
+            "Hepatitis C": "hepatitis_c", "VIH": "vih", "Test de HPV": "hpv",
+            "Papanicolaou": "papanicolau", "SOMF": "somf", "Colonoscopia": "colonoscopia",
+            "Mamografia": "mamografia", "PSA": "psa", "ERC": "erc", "EPOC": "epoc",
+            "Aneurisma aorta": "aneurisma_aorta", "Osteoporosis": "osteoporosis",
+            "Aspirina": "aspirina", "Gestión Emocional": "gestion_emocional",
+            "Adherencia al Tratamiento": "adherencia_tratamiento", "Redes de Apoyo": "redes_apoyo",
+            "Actividad y Descanso": "actividad_descanso"
+        };
+
+        data.evaluaciones.forEach(ev => {
+            const key = ev.motivo.split('(')[0].trim();
+            const col = mapeoSupabase[ev.motivo] || mapeoSupabase[key];
+            if (col) {
+                supabaseRow[`${col}_calificacion`] = ev.calificacion;
+                supabaseRow[`${col}_observaciones`] = ev.observaciones;
+            }
+        });
+    }
+
+    const { error: supaError } = await supabase
+        .from('seguimiento_cronicos')
+        .insert(supabaseRow);
+
+    if (supaError) console.error('Error Supabase seguimiento:', supaError);
+    else console.log('✅ Seguimiento guardado en Supabase para DNI:', data.paciente.dni);
+} catch (e) {
+    console.error('Error Supabase seguimiento catch:', e.message);
+}
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -334,6 +390,129 @@ app.post('/api/seguimiento/historial', async (req, res) => {
         historial.sort((a, b) => new Date(b.Fecha_Seguimiento) - new Date(a.Fecha_Seguimiento));
         res.json({ success: true, historial });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/verificar-seguimiento', async (req, res) => {
+    const dni = String(req.body.dni).trim();
+    const hoy = new Date();
+
+    try {
+        // 1. Verificar en IAPOS
+        const fechaHoy = hoy.toISOString().split('T')[0];
+        const soapBody = `<?xml version="1.0" encoding="utf-8"?>
+        <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+                <BEWsValidaAfi.Execute xmlns="IAPOS_WS">
+                    <Usuario>CONSULTAPDP</Usuario>
+                    <Passwd>1Qaz</Passwd>
+                    <Nafiliado>${dni}</Nafiliado>
+                    <Badocnumdo>${dni}</Badocnumdo>
+                    <Tidocodigo_de_documento>96</Tidocodigo_de_documento>
+                    <Ogorcodigo>1</Ogorcodigo>
+                    <Fechpresta>${fechaHoy}</Fechpresta>
+                </BEWsValidaAfi.Execute>
+            </soap:Body>
+        </soap:Envelope>`;
+
+        let datosIAPOS = null;
+        try {
+            const iaposRes = await axios.post(
+                'https://aswe.santafe.gov.ar/iapos-sw-srvt/servlet/abewsvalidaafi',
+                soapBody,
+                { headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': 'IAPOS_WSaction/ABEWSVALIDAAFI.Execute' }, timeout: 10000 }
+            );
+            const xml = iaposRes.data;
+            const getValor = (tag) => {
+                const match = xml.match(new RegExp(`<${tag}[^>]*>([^<]+)<\/${tag}>`));
+                return match ? match[1].trim() : null;
+            };
+            datosIAPOS = {
+                esActivo: getValor('Estado') === 'A',
+                nombre: getValor('Apenom'),
+                edad: getValor('Edad'),
+                sexo: getValor('Sexo'),
+                localidad: getValor('Localidad')
+            };
+        } catch (e) {
+            console.error('Error IAPOS:', e.message);
+        }
+
+        // 2. Buscar historial DP en Supabase
+        const { data: historialDP } = await supabase
+            .from('historial_dia_preventivo')
+            .select('*')
+            .eq('dni', dni)
+            .in('tipo', ['Adultos', 'Pediatria'])
+            .order('fechax', { ascending: false });
+
+        const ultimoDP = historialDP?.[0] || null;
+
+        // 3. Verificar bloqueos
+        let bloqueado = false;
+        let motivoBloqueo = null;
+// En lugar de bloquear, solo informamos
+        if (!ultimoDP) {
+            bloqueado = false; // no bloqueamos
+            motivoBloqueo = 'NO_DP'; // solo avisamos
+        } else {
+            const unAnioAtras = new Date(ultimoDP.fechax);
+            unAnioAtras.setFullYear(unAnioAtras.getFullYear() + 1);
+            if (hoy > unAnioAtras) {
+            bloqueado = false; // no bloqueamos
+            motivoBloqueo = 'DP_VENCIDO'; // solo avisamos
+            }
+        }
+
+        // 4. Contar seguimientos desde el último DP
+        let cantSeguimientos = 0;
+        if (ultimoDP) {
+            const { data: seguimientos } = await supabase
+                .from('seguimiento_cronicos')
+                .select('id')
+                .eq('dni_paciente', dni)
+                .gte('created_at', ultimoDP.fechax);
+            cantSeguimientos = seguimientos?.length || 0;
+
+            if (!bloqueado && cantSeguimientos >= 4) {
+                bloqueado = true;
+                motivoBloqueo = 'LIMITE_SEGUIMIENTOS';
+            }
+        }
+
+        // 5. Estudios complementarios
+        const { data: estudios } = await supabase
+            .from('practicas_autorizadas')
+            .select('*')
+            .eq('dni', dni)
+            .eq('estado', 'REALIZADA');
+
+        // 6. Alertas clínicas
+        const alertas = [];
+        if (ultimoDP) {
+            if (ultimoDP.cancer_cervico_hpv === 'Patologico') alertas.push({ tipo: 'URGENTE', mensaje: '🔴 HPV Patológico — verificar PAP' });
+            if (ultimoDP.somf === 'Patologico') alertas.push({ tipo: 'URGENTE', mensaje: '🔴 SOMF Patológico — indicar VCC urgente' });
+            if (ultimoDP.diabetes === 'Presenta') alertas.push({ tipo: 'RIESGO', mensaje: '⚠️ Diabetes — verificar HbA1c y fondo de ojo' });
+            if (ultimoDP.dislipemias === 'Presenta') alertas.push({ tipo: 'RIESGO', mensaje: '⚠️ Dislipemia — verificar tratamiento' });
+            if (ultimoDP.presion_arterial === 'Hipertensión') alertas.push({ tipo: 'RIESGO', mensaje: '⚠️ Hipertensión — verificar tratamiento' });
+            if (ultimoDP.osteoporosis === 'Se verifica') alertas.push({ tipo: 'RIESGO', mensaje: '⚠️ Osteoporosis — verificar tratamiento' });
+            if (ultimoDP.epoc === 'Se verifica') alertas.push({ tipo: 'RIESGO', mensaje: '⚠️ EPOC — verificar espirometría' });
+        }
+
+        res.json({
+            success: true,
+            bloqueado,
+            motivoBloqueo,
+            iapos: datosIAPOS,
+            ultimoDP,
+            historialDP: historialDP || [],
+            cantSeguimientos,
+            estudios: estudios || [],
+            alertas
+        });
+
+    } catch (e) {
+        console.error('Error verificar seguimiento:', e.message);
+        res.status(500).json({ success: false, message: e.message });
+    }
 });
 
 initializeGoogleSheets().then(() => {
