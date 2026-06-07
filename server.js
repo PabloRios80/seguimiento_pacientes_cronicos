@@ -2,9 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const { GoogleSpreadsheet } = require('google-spreadsheet'); // Para escribir (Seguimiento)
 const { google } = require('googleapis'); // Para leer (Base Grande)
-const session = require('express-session');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,13 +91,6 @@ let credentials;
 
 app.use(express.json());
 app.use(express.static('public'));
-app.use(session({
-    secret: 'tu-secreto-seguro',
-    resave: false,
-    saveUninitialized: true
-}));
-app.use(passport.initialize());
-app.use(passport.session());
 
 // --- INICIALIZACIÓN ---
 async function initializeGoogleSheets() {
@@ -241,15 +231,6 @@ async function configurarColumnasHoja() {
         else { await sheet.loadHeaderRow(); if (!sheet.headerValues || sheet.headerValues.length === 0) await sheet.setHeaderRow(headers); }
     } catch (e) { console.error('Warn columnas:', e.message); }
 }
-
-// --- AUTH ---
-app.get('/auth/google', (req, res, next) => { req.session.returnTo = req.query.returnTo || '/'; next(); }, passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/login.html' }), (req, res) => { const url = req.session.returnTo || '/'; delete req.session.returnTo; res.redirect(url); });
-passport.use(new GoogleStrategy({ clientID: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, callbackURL: process.env.GOOGLE_CALLBACK_URL }, (a, r, p, d) => d(null, p)));
-passport.serializeUser((u, d) => d(null, u));
-passport.deserializeUser((o, d) => d(null, o));
-app.get('/api/user', (req, res) => req.isAuthenticated() ? res.json({ isLoggedIn: true, user: { name: req.user.displayName, email: req.user.emails[0].value } }) : res.json({ isLoggedIn: false }));
-
 // --- RUTA BUSCAR ---
 app.post('/buscar', async (req, res) => {
     try {
