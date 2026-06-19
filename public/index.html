@@ -30,9 +30,13 @@
                     <img src="images/logo_iapos.png" alt="Logo IAPOS" class="h-20"> 
                 </div>
             </div>
-            <div class="md:col-span-2 flex justify-end mt-4"> 
+            <div class="md:col-span-2 flex justify-end mt-4 gap-2"> 
                 <button id="generar-informe-btn" class="px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-blue-600 shadow-md text-sm">
                     Generar Informe de Seguimiento
+                </button>
+                <button onclick="cerrarSesionGlobal()"
+                    class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Cerrar sesión
                 </button>
             </div>
 
@@ -662,5 +666,13 @@
     </p>
 
     <script src="app.js?v=2.0"></script>
+    <script>
+    function cerrarSesionGlobal() {
+        if (!confirm('¿Cerrar sesión?')) return;
+        localStorage.removeItem('dpToken');
+        localStorage.removeItem('dpProfesional');
+        window.location.href = 'https://acceso.diapreventivoiapos.com';
+    }
+</script>
 </body>
 </html>
