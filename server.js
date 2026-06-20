@@ -495,7 +495,27 @@ app.post('/api/verificar-seguimiento', async (req, res) => {
         res.status(500).json({ success: false, message: e.message });
     }
 });
-
-initializeGoogleSheets().then(() => {
+async function iniciarApp() {
+    const maxIntentos = 5;
+    let retraso = 1000;
+    for (let intento = 1; intento <= maxIntentos; intento++) {
+        try {
+            console.log(`⏳ Cargando Google Sheet (Intento ${intento}/${maxIntentos})...`);
+            await initializeGoogleSheets();
+            console.log('✅ Google Sheets conectado.');
+            break;
+        } catch (error) {
+            console.error(`⚠️ Intento ${intento} fallido:`, error.message);
+            if (intento === maxIntentos) {
+                console.error('⚠️ Google Sheets no disponible al arrancar — el servidor sigue funcionando sin Sheets.');
+            } else {
+                console.log(`🔄 Reintentando en ${retraso / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, retraso));
+                retraso *= 2;
+            }
+        }
+    }
     app.listen(PORT, () => console.log(`✅ Servidor migrado listo en ${API_BASE_URL}`));
-});
+}
+
+iniciarApp();
