@@ -88,9 +88,8 @@
         const tokenUrl = params.get("token");
         if (tokenUrl) {
           localStorage.setItem("dpToken", tokenUrl);
-          // NO borrar la URL todavía
         }
-        const token = tokenUrl || localStorage.getItem("dpToken");
+        const token = localStorage.getItem("dpToken");
         if (!token) {
           window.location.href =
             "https://acceso.diapreventivoiapos.com/login.html";
@@ -106,6 +105,9 @@
             return;
           }
           window.dpProfesional = payload;
+          if (tokenUrl) {
+            window.history.replaceState({}, "", window.location.pathname);
+          }
         } catch (e) {
           localStorage.removeItem("dpToken");
           window.location.href =
