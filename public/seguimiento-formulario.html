@@ -1,213 +1,446 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Informe de Seguimiento</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .loader { border-right-color: #3b82f6; animation: spinner 1s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* Scroll personalizado */
-        .modal-scroll::-webkit-scrollbar { width: 8px; }
-        .modal-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* --- MAGIA DE IMPRESIÓN --- */
-        @media print {
-            body * { visibility: hidden; } /* Ocultar todo */
-            #ver-resumen-modal, #ver-resumen-modal * { visibility: visible; } /* Mostrar solo el modal */
-            #ver-resumen-modal {
-                position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0;
-                background: white !important; box-shadow: none !important;
-            }
-            /* Ocultar botones y barras de scroll al imprimir */
-            .no-print, .modal-scroll { overflow: visible !important; } 
-            button, #close-resumen-btn { display: none !important; }
-            /* Ajustes para que entre en la hoja */
-            .modal-content-wrapper { padding: 0 !important; border: none !important; }
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f1f5f9;
+      }
+      .loader {
+        border-right-color: #3b82f6;
+        animation: spinner 1s linear infinite;
+      }
+      @keyframes spinner {
+        0% {
+          transform: rotate(0deg);
         }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Scroll personalizado */
+      .modal-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+      .modal-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+      .modal-scroll::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .modal-scroll::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      /* --- MAGIA DE IMPRESIÓN --- */
+      @media print {
+        body * {
+          visibility: hidden;
+        } /* Ocultar todo */
+        #ver-resumen-modal,
+        #ver-resumen-modal * {
+          visibility: visible;
+        } /* Mostrar solo el modal */
+        #ver-resumen-modal {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          background: white !important;
+          box-shadow: none !important;
+        }
+        /* Ocultar botones y barras de scroll al imprimir */
+        .no-print,
+        .modal-scroll {
+          overflow: visible !important;
+        }
+        button,
+        #close-resumen-btn {
+          display: none !important;
+        }
+        /* Ajustes para que entre en la hoja */
+        .modal-content-wrapper {
+          padding: 0 !important;
+          border: none !important;
+        }
+      }
     </style>
-</head>
-<body class="flex items-start justify-center min-h-screen p-4 print:p-0">
-    <div class="container mx-auto bg-white rounded-2xl shadow-xl my-6 max-w-5xl p-6 md:p-8 border border-slate-200">
-        
-        <!-- Cabecera -->
-        <div class="flex justify-between items-center border-b-2 border-slate-200 pb-4 mb-6">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-700 text-white p-2 rounded-lg shadow-md">
-                    <i class="fas fa-heartbeat text-xl"></i>
-                </div>
-                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
-                    Seguimiento <span class="text-blue-700">Crónicos</span>
-                </h1>
-            </div>
-            <button id="signout-btn" class="bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-sm font-bold py-2 px-4 rounded-full transition flex items-center shadow-sm">
-                <i class="fas fa-sign-out-alt mr-2"></i> Salir
-            </button>
+  </head>
+  <body class="flex items-start justify-center min-h-screen p-4 print:p-0">
+    <div
+      class="container mx-auto bg-white rounded-2xl shadow-xl my-6 max-w-5xl p-6 md:p-8 border border-slate-200"
+    >
+      <!-- Cabecera -->
+      <div
+        class="flex justify-between items-center border-b-2 border-slate-200 pb-4 mb-6"
+      >
+        <div class="flex items-center gap-3">
+          <div class="bg-blue-700 text-white p-2 rounded-lg shadow-md">
+            <i class="fas fa-heartbeat text-xl"></i>
+          </div>
+          <h1
+            class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight"
+          >
+            Seguimiento <span class="text-blue-700">Crónicos</span>
+          </h1>
         </div>
-        
-        <!-- I. DATOS (Estilo Azul/Indigo Intenso) -->
-        <div class="mb-8 border border-indigo-200 p-6 rounded-2xl bg-indigo-100 shadow-sm">
-            <div class="flex items-center mb-4">
-                <span class="bg-white text-indigo-700 p-2 rounded-lg shadow-sm mr-3 border border-indigo-200"><i class="fas fa-user-md"></i></span>
-                <h2 class="text-lg font-bold text-indigo-900">I. Datos Profesionales</h2>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                    <label class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Profesional</label>
-                    <input type="text" id="profesional-nombre" class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm text-indigo-900 placeholder-indigo-400" placeholder="Nombre y Apellido">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Matrícula</label>
-                    <input type="text" id="profesional-matricula" class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm text-indigo-900">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Fecha</label>
-                    <input type="date" id="seguimiento-fecha" class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm text-indigo-900">
-                </div>
-            </div>
-            <!-- Fila de Paciente -->
-            <div class="mt-5 pt-4 border-t border-indigo-300 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-200 shadow-sm">
-                    <span class="text-xs font-bold text-indigo-500 uppercase mr-3">Paciente</span>
-                    <strong id="afiliado-nombre" class="text-indigo-900 text-lg truncate">Cargando...</strong>
-                </div>
-                <div class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-200 shadow-sm">
-                    <span class="text-xs font-bold text-indigo-500 uppercase mr-3">DNI</span>
-                    <strong id="afiliado-dni" class="text-indigo-900 text-lg">...</strong>
-                </div>
-            </div>
-        </div>
+        <button
+          id="signout-btn"
+          class="bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-sm font-bold py-2 px-4 rounded-full transition flex items-center shadow-sm"
+        >
+          <i class="fas fa-sign-out-alt mr-2"></i> Salir
+        </button>
+      </div>
 
-        <!-- II. ALERTAS (Estilo Rojo/Rose Intenso) -->
-        <div class="mb-8 border border-rose-200 p-6 rounded-2xl bg-rose-100 shadow-sm">
-            <div class="flex items-center mb-5">
-                <span class="bg-white text-rose-600 p-2 rounded-lg shadow-sm mr-3 border border-rose-200"><i class="fas fa-heartbeat"></i></span>
-                <h2 class="text-xl font-bold text-rose-900">II. Indicadores Clínicos (Alertas)</h2>
-            </div>
-            <div id="motivos-seguimiento-container" class="space-y-4">
-                <p class="text-rose-500 italic text-center py-4">Cargando indicadores...</p>
-            </div>
+      <!-- I. DATOS (Estilo Azul/Indigo Intenso) -->
+      <div
+        class="mb-8 border border-indigo-200 p-6 rounded-2xl bg-indigo-100 shadow-sm"
+      >
+        <div class="flex items-center mb-4">
+          <span
+            class="bg-white text-indigo-700 p-2 rounded-lg shadow-sm mr-3 border border-indigo-200"
+            ><i class="fas fa-user-md"></i
+          ></span>
+          <h2 class="text-lg font-bold text-indigo-900">
+            I. Datos Profesionales
+          </h2>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div>
+            <label
+              class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1"
+              >Profesional</label
+            >
+            <input
+              type="text"
+              id="profesional-nombre"
+              class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm text-indigo-900 placeholder-indigo-400"
+              placeholder="Nombre y Apellido"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1"
+              >Matrícula</label
+            >
+            <input
+              type="text"
+              id="profesional-matricula"
+              class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm text-indigo-900"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1"
+              >Fecha</label
+            >
+            <input
+              type="date"
+              id="seguimiento-fecha"
+              class="w-full border border-indigo-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-sm text-indigo-900"
+            />
+          </div>
+        </div>
+        <!-- Fila de Paciente -->
+        <div
+          class="mt-5 pt-4 border-t border-indigo-300 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <div
+            class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-200 shadow-sm"
+          >
+            <span class="text-xs font-bold text-indigo-500 uppercase mr-3"
+              >Paciente</span
+            >
+            <strong
+              id="afiliado-nombre"
+              class="text-indigo-900 text-lg truncate"
+              >Cargando...</strong
+            >
+          </div>
+          <div
+            class="flex items-center bg-white px-4 py-3 rounded-xl border border-indigo-200 shadow-sm"
+          >
+            <span class="text-xs font-bold text-indigo-500 uppercase mr-3"
+              >DNI</span
+            >
+            <strong id="afiliado-dni" class="text-indigo-900 text-lg"
+              >...</strong
+            >
+          </div>
+        </div>
+      </div>
 
-        <!-- III. HÁBITOS (Estilo Verde/Teal Intenso) -->
-        <div class="mb-8 border border-teal-200 p-6 rounded-2xl bg-teal-100 shadow-sm">
-            <div class="flex items-center mb-5">
-                <span class="bg-white text-teal-600 p-2 rounded-lg shadow-sm mr-3 border border-teal-200"><i class="fas fa-walking"></i></span>
-                <h2 class="text-xl font-bold text-teal-900">III. Evaluación General y Hábitos</h2>
-            </div>
-            <div id="items-fijos-container" class="space-y-4"></div>
+      <!-- II. ALERTAS (Estilo Rojo/Rose Intenso) -->
+      <div
+        class="mb-8 border border-rose-200 p-6 rounded-2xl bg-rose-100 shadow-sm"
+      >
+        <div class="flex items-center mb-5">
+          <span
+            class="bg-white text-rose-600 p-2 rounded-lg shadow-sm mr-3 border border-rose-200"
+            ><i class="fas fa-heartbeat"></i
+          ></span>
+          <h2 class="text-xl font-bold text-rose-900">
+            II. Indicadores Clínicos (Alertas)
+          </h2>
         </div>
+        <div id="motivos-seguimiento-container" class="space-y-4">
+          <p class="text-rose-500 italic text-center py-4">
+            Cargando indicadores...
+          </p>
+        </div>
+      </div>
 
-        <!-- IV. CONCLUSIÓN (Estilo Ambar/Yellow Intenso) -->
-        <div class="mb-10 border border-amber-300 bg-amber-100 p-6 rounded-2xl shadow-sm">
-            <h2 class="text-sm font-bold text-amber-800 uppercase mb-3 flex items-center">
-                <i class="fas fa-comment-medical mr-2"></i> IV. Conclusión Profesional
-            </h2>
-            <textarea id="observacion-profesional" rows="3" class="w-full border border-amber-400 rounded-xl p-4 focus:outline-none focus:border-amber-600 focus:ring-4 focus:ring-amber-200 transition bg-white text-slate-800 placeholder-amber-400" placeholder="Resumen de la evolución, cambios en medicación o nuevas indicaciones..."></textarea>
+      <!-- III. HÁBITOS (Estilo Verde/Teal Intenso) -->
+      <div
+        class="mb-8 border border-teal-200 p-6 rounded-2xl bg-teal-100 shadow-sm"
+      >
+        <div class="flex items-center mb-5">
+          <span
+            class="bg-white text-teal-600 p-2 rounded-lg shadow-sm mr-3 border border-teal-200"
+            ><i class="fas fa-walking"></i
+          ></span>
+          <h2 class="text-xl font-bold text-teal-900">
+            III. Evaluación General y Hábitos
+          </h2>
         </div>
+        <div id="items-fijos-container" class="space-y-4"></div>
+      </div>
 
-        <!-- BOTONES PRINCIPALES -->
-        <div class="flex flex-col sm:flex-row justify-center gap-5 mb-16">
-            <button id="guardar-seguimiento-btn" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-12 rounded-full shadow-xl shadow-slate-300 transition transform hover:-translate-y-1 flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed">
-                <i class="fas fa-save mr-3 group-hover:scale-110 transition"></i> Guardar Informe
-            </button>
-            <button id="cancelar-seguimiento-btn" class="bg-white border-2 border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-800 font-bold py-4 px-8 rounded-full shadow-sm transition">
-                Cancelar
-            </button>
-        </div>
+      <!-- IV. CONCLUSIÓN (Estilo Ambar/Yellow Intenso) -->
+      <div
+        class="mb-10 border border-amber-300 bg-amber-100 p-6 rounded-2xl shadow-sm"
+      >
+        <h2
+          class="text-sm font-bold text-amber-800 uppercase mb-3 flex items-center"
+        >
+          <i class="fas fa-comment-medical mr-2"></i> IV. Conclusión Profesional
+        </h2>
+        <textarea
+          id="observacion-profesional"
+          rows="3"
+          class="w-full border border-amber-400 rounded-xl p-4 focus:outline-none focus:border-amber-600 focus:ring-4 focus:ring-amber-200 transition bg-white text-slate-800 placeholder-amber-400"
+          placeholder="Resumen de la evolución, cambios en medicación o nuevas indicaciones..."
+        ></textarea>
+      </div>
 
-        <!-- HISTORIAL -->
-        <div class="border-t-2 border-dashed border-slate-300 pt-10">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-xl font-bold text-slate-700 flex items-center">
-                    <i class="fas fa-history text-slate-400 mr-3"></i> Historial Clínico
-                </h2>
-                <button id="refresh-history-btn" class="text-blue-700 hover:text-blue-900 text-sm font-bold bg-blue-100 hover:bg-blue-200 px-4 py-2 rounded-full transition">
-                    <i class="fas fa-sync-alt mr-1"></i> Actualizar
-                </button>
-            </div>
-            <div id="history-list" class="grid grid-cols-1 gap-4">
-                <!-- Lista inyectada por JS -->
-            </div>
+      <button
+        id="ver-estudios-btn"
+        class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-full shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center"
+      >
+        <i class="fas fa-file-medical mr-3"></i> Ver Estudios del Paciente
+      </button>
+
+      <!-- BOTONES PRINCIPALES -->
+      <div class="flex flex-col sm:flex-row justify-center gap-5 mb-16">
+        <button
+          id="guardar-seguimiento-btn"
+          class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-12 rounded-full shadow-xl shadow-slate-300 transition transform hover:-translate-y-1 flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <i class="fas fa-save mr-3 group-hover:scale-110 transition"></i>
+          Guardar Informe
+        </button>
+        <button
+          id="cancelar-seguimiento-btn"
+          class="bg-white border-2 border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-800 font-bold py-4 px-8 rounded-full shadow-sm transition"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="border-t-2 border-dashed border-slate-300 pt-10">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="text-xl font-bold text-slate-700 flex items-center">
+            <i class="fas fa-history text-slate-400 mr-3"></i> Historial Clínico
+          </h2>
+          <button
+            id="refresh-history-btn"
+            class="text-blue-700 hover:text-blue-900 text-sm font-bold bg-blue-100 hover:bg-blue-200 px-4 py-2 rounded-full transition"
+          >
+            <i class="fas fa-sync-alt mr-1"></i> Actualizar
+          </button>
         </div>
+        <div id="history-list" class="grid grid-cols-1 gap-4">
+          <!-- Lista inyectada por JS -->
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================== -->
     <!-- MODAL: VISOR DE RESUMEN HISTÓRICO -->
     <!-- ============================================================== -->
-    <div id="ver-resumen-modal" class="fixed inset-0 bg-slate-900/70 hidden items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] border border-slate-200 modal-content-wrapper">
-            
-            <!-- Cabecera Modal -->
-            <div class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/80 rounded-t-2xl">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded uppercase">Informe Histórico</span>
-                        <span class="text-slate-400 text-xs">|</span>
-                        <span id="modal-paciente-nombre" class="font-bold text-slate-700 text-lg">Paciente Desconocido</span>
-                    </div>
-                    <p class="text-sm text-slate-500 mt-1" id="modal-fecha-profesional">Cargando...</p>
-                </div>
-                <div class="flex gap-2 no-print">
-                    <button id="print-btn" class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition" title="Imprimir">
-                        <i class="fas fa-print text-xl"></i>
-                    </button>
-                    <button id="close-resumen-btn" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition" title="Cerrar">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
+    <div
+      id="ver-resumen-modal"
+      class="fixed inset-0 bg-slate-900/70 hidden items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] border border-slate-200 modal-content-wrapper"
+      >
+        <!-- Cabecera Modal -->
+        <div
+          class="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/80 rounded-t-2xl"
+        >
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span
+                class="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded uppercase"
+                >Informe Histórico</span
+              >
+              <span class="text-slate-400 text-xs">|</span>
+              <span
+                id="modal-paciente-nombre"
+                class="font-bold text-slate-700 text-lg"
+                >Paciente Desconocido</span
+              >
             </div>
-
-            <!-- Cuerpo Scrollable -->
-            <div class="p-8 overflow-y-auto modal-scroll flex-1 bg-white">
-                
-                <!-- Sección Alertas -->
-                <div class="mb-8">
-                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Hallazgos y Alertas</h4>
-                    <div id="modal-lista-alertas" class="space-y-3">
-                        <!-- Aquí se inyectan las alertas -->
-                    </div>
-                    <div id="modal-sin-alertas" class="hidden bg-emerald-50 text-emerald-700 p-4 rounded-xl text-sm text-center border border-emerald-100">
-                        <i class="fas fa-check-circle text-lg mb-1 block"></i> Paciente estable. Sin alertas negativas registradas.
-                    </div>
-                </div>
-
-                <!-- Sección Observación -->
-                <div>
-                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Indicaciones del Profesional</h4>
-                    <div class="bg-amber-50 p-6 rounded-xl border border-amber-100 text-slate-700 text-sm relative">
-                        <i class="fas fa-quote-left text-amber-200 text-4xl absolute top-2 left-2 -z-0 opacity-50"></i>
-                        <span id="modal-observacion-texto" class="relative z-10 block pl-4 leading-relaxed">...</span>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Footer Modal (Botón visible solo en pantalla) -->
-            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl text-right no-print">
-                <button id="btn-cerrar-modal-inferior" class="bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-6 py-2 rounded-lg font-bold transition shadow-sm">
-                    Cerrar
-                </button>
-            </div>
+            <p class="text-sm text-slate-500 mt-1" id="modal-fecha-profesional">
+              Cargando...
+            </p>
+          </div>
+          <div class="flex gap-2 no-print">
+            <button
+              id="print-btn"
+              class="text-slate-500 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition"
+              title="Imprimir"
+            >
+              <i class="fas fa-print text-xl"></i>
+            </button>
+            <button
+              id="close-resumen-btn"
+              class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition"
+              title="Cerrar"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
         </div>
+
+        <!-- Cuerpo Scrollable -->
+        <div class="p-8 overflow-y-auto modal-scroll flex-1 bg-white">
+          <!-- Sección Alertas -->
+          <div class="mb-8">
+            <h4
+              class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2"
+            >
+              Hallazgos y Alertas
+            </h4>
+            <div id="modal-lista-alertas" class="space-y-3">
+              <!-- Aquí se inyectan las alertas -->
+            </div>
+            <div
+              id="modal-sin-alertas"
+              class="hidden bg-emerald-50 text-emerald-700 p-4 rounded-xl text-sm text-center border border-emerald-100"
+            >
+              <i class="fas fa-check-circle text-lg mb-1 block"></i> Paciente
+              estable. Sin alertas negativas registradas.
+            </div>
+          </div>
+
+          <!-- Sección Observación -->
+          <div>
+            <h4
+              class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2"
+            >
+              Indicaciones del Profesional
+            </h4>
+            <div
+              class="bg-amber-50 p-6 rounded-xl border border-amber-100 text-slate-700 text-sm relative"
+            >
+              <i
+                class="fas fa-quote-left text-amber-200 text-4xl absolute top-2 left-2 -z-0 opacity-50"
+              ></i>
+              <span
+                id="modal-observacion-texto"
+                class="relative z-10 block pl-4 leading-relaxed"
+                >...</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Modal (Botón visible solo en pantalla) -->
+        <div
+          class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl text-right no-print"
+        >
+          <button
+            id="btn-cerrar-modal-inferior"
+            class="bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-6 py-2 rounded-lg font-bold transition shadow-sm"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Loader y Mensajes -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/90 hidden items-center justify-center z-[60] backdrop-blur-sm">
-        <div class="text-center">
-            <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-600 h-12 w-12 mx-auto mb-4 shadow-lg shadow-blue-200"></div>
-            <p class="text-slate-600 font-bold animate-pulse" id="loading-text">Procesando datos...</p>
-        </div>
+    <div
+      id="loading-overlay"
+      class="fixed inset-0 bg-white/90 hidden items-center justify-center z-[60] backdrop-blur-sm"
+    >
+      <div class="text-center">
+        <div
+          class="loader ease-linear rounded-full border-4 border-t-4 border-blue-600 h-12 w-12 mx-auto mb-4 shadow-lg shadow-blue-200"
+        ></div>
+        <p class="text-slate-600 font-bold animate-pulse" id="loading-text">
+          Procesando datos...
+        </p>
+      </div>
     </div>
-    <div id="message-modal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-[70] backdrop-blur-sm"></div>
-
+    <div
+      id="message-modal"
+      class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-[70] backdrop-blur-sm"
+    ></div>
+    <div
+      id="estudios-modal"
+      class="fixed inset-0 bg-slate-900/70 hidden items-center justify-center z-50 p-4 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]"
+      >
+        <div
+          class="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl"
+        >
+          <h3 class="text-xl font-bold text-purple-800">
+            Estudios Complementarios — <span id="estudios-modal-dni"></span>
+          </h3>
+          <button
+            id="close-estudios-modal"
+            class="text-gray-400 hover:text-red-500 p-2 rounded-full transition"
+          >
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div
+          id="estudios-modal-content"
+          class="p-6 overflow-y-auto flex-1"
+        ></div>
+        <div class="p-4 border-t bg-slate-50 rounded-b-2xl text-right">
+          <button
+            id="close-estudios-modal-bottom"
+            class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
     <script src="seguimiento-formulario.js"></script>
-</body>
+  </body>
 </html>
