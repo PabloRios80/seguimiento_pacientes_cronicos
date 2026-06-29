@@ -368,6 +368,13 @@ document.addEventListener("DOMContentLoaded", () => {
       estudiosModal.classList.remove("hidden");
       estudiosModal.classList.add("flex");
 
+      const token = localStorage.getItem("dpToken");
+      console.log(
+        "Token encontrado:",
+        token ? "SÍ" : "NO",
+        token?.substring(0, 20),
+      );
+
       try {
         const token = localStorage.getItem("dpToken");
         const res = await fetch(
