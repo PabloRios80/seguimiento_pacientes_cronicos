@@ -82,6 +82,36 @@
         }
       }
     </style>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const tokenUrl = params.get("token");
+        if (tokenUrl) {
+          localStorage.setItem("dpToken", tokenUrl);
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+        const token = localStorage.getItem("dpToken");
+        if (!token) {
+          window.location.href =
+            "https://acceso.diapreventivoiapos.com/login.html";
+          return;
+        }
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          const ahora = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < ahora) {
+            localStorage.removeItem("dpToken");
+            window.location.href =
+              "https://acceso.diapreventivoiapos.com/login.html";
+          }
+          window.dpProfesional = payload;
+        } catch (e) {
+          localStorage.removeItem("dpToken");
+          window.location.href =
+            "https://acceso.diapreventivoiapos.com/login.html";
+        }
+      })();
+    </script>
   </head>
   <body class="flex items-start justify-center min-h-screen p-4 print:p-0">
     <div
