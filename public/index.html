@@ -10,6 +10,16 @@
     <style>
         
     </style>
+    <script>
+    (function() {
+        const params = new URLSearchParams(window.location.search);
+        const tokenUrl = params.get('token');
+        if (tokenUrl) {
+            localStorage.setItem('dpToken', tokenUrl);
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+})();
+</script>
 </head>
 <body class="bg-gray-50">
     <div id="alerta-bloqueo" class="hidden fixed top-0 left-0 w-full z-50 bg-red-600 text-white p-4 text-center font-bold text-lg shadow-lg">
