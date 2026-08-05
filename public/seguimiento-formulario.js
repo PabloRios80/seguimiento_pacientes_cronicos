@@ -340,6 +340,16 @@ document.addEventListener("DOMContentLoaded", () => {
       paciente: { dni: afiliadosDniEl.textContent, nombre: afiliadosNombreEl.textContent },
       observacionProfesional: document.getElementById("observacion-profesional").value.trim(),
       evaluaciones: [],
+      id_sede_dp: (function () {
+        try {
+          const token = localStorage.getItem("dpToken");
+          if (!token) return null;
+          const payloadToken = JSON.parse(atob(token.split(".")[1]));
+          return payloadToken.id_sede_dp || null;
+        } catch (e) {
+          return null;
+        }
+      })(),
     };
 
     document.querySelectorAll(".evaluacion-item").forEach((el) => {

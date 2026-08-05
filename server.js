@@ -355,6 +355,54 @@ try {
 } catch (e) {
     console.error('Error Supabase seguimiento catch:', e.message);
 }
+
+        // Registrar Módulo Seguimiento como acción facturable (339164 / interno C040101)
+        try {
+            const hoy = new Date().toISOString().split('T')[0];
+            const idSedeDp = data.id_sede_dp ? parseInt(data.id_sede_dp) : null;
+
+            if (idSedeDp) {
+                const { data: prestadoresCoordSede } = await supabase
+                    .from('prestador_sedes')
+                    .select('id_prestador')
+                    .eq('id_sede_dp', idSedeDp);
+
+                let prestadorCoord = null;
+                if (prestadoresCoordSede && prestadoresCoordSede.length > 0) {
+                    const idsPrestadores = prestadoresCoordSede.map((r) => r.id_prestador);
+                    const { data: institucionCoord } = await supabase
+                        .from('prestadores_institucionales')
+                        .select('id, nombre_institucion')
+                        .in('id', idsPrestadores)
+                        .eq('especialidad', 'coordinacion_dp')
+                        .maybeSingle();
+                    if (institucionCoord) {
+                        prestadorCoord = institucionCoord;
+                    }
+                }
+
+                if (prestadorCoord) {
+                    await supabase.from('practicas_autorizadas').insert({
+                        dni: data.paciente.dni,
+                        nombre_completo: data.paciente.nombre || '',
+                        descripcion_practica: 'Módulo Seguimiento',
+                        estado: 'REALIZADA',
+                        fecha_autorizacion: hoy,
+                        fecha_carga: hoy,
+                        id_prestador: prestadorCoord.id,
+                        nombre_prestador: prestadorCoord.nombre_institucion,
+                    });
+                    console.log('✅ Módulo Seguimiento (339164) registrado para DNI:', data.paciente.dni);
+                } else {
+                    console.warn(`No hay prestador de Coordinación DP configurado para sede ${idSedeDp}`);
+                }
+            } else {
+                console.warn('No se recibió id_sede_dp, no se pudo asignar Módulo Seguimiento a ningún prestador.');
+            }
+        } catch (facturacionErr) {
+            console.error('Error al registrar Módulo Seguimiento en practicas_autorizadas:', facturacionErr.message);
+        }
+
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
