@@ -273,6 +273,36 @@ app.post('/api/seguimiento/guardar', async (req, res) => {
     try {
         const data = req.body;
         if (!docSeguimiento) return res.status(500).json({ success: false, error: 'DB Seguimiento desconectada' });
+
+        // ── BLOQUEO DE ACCESO: Seguimiento de Crónicos es exclusivo de ──
+        // IAPOS Espacio Prestacional (sede 1). Un médico que trabaje en
+        // varias sedes (o un superuser) podría intentar cargarlo para un
+        // paciente que en realidad está siendo atendido en otra sede ese
+        // día — hay que impedirlo, no solo etiquetar mal el dato.
+        // Si el paciente no tiene ninguna admisión de hoy, se deja pasar
+        // (no todas las sedes usan Tablero del Día todavía), confiando en
+        // que la pantalla ya está oculta para médicos de otras sedes.
+        try {
+            const hoyLocal = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+            }).format(new Date());
+            const { data: admisionHoy } = await supabase
+                .from('tablero_dia')
+                .select('id_sede_dp')
+                .eq('dni', data.paciente?.dni)
+                .eq('fecha', hoyLocal)
+                .not('id_sede_dp', 'is', null)
+                .maybeSingle();
+            if (admisionHoy?.id_sede_dp && admisionHoy.id_sede_dp !== 1) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Este paciente figura admitido hoy en otra sede. El Seguimiento de Crónicos solo está habilitado para IAPOS Espacio Prestacional (Santa Fe).',
+                });
+            }
+        } catch (eSedeCheck) {
+            console.warn('No se pudo verificar la sede de admisión para Seguimiento:', eSedeCheck.message);
+        }
+
         const sheet = docSeguimiento.sheetsByTitle['Seguimiento'];
         
         const mapeo = {
@@ -359,7 +389,9 @@ try {
         // Registrar Módulo Seguimiento como acción facturable (339164 / interno C040101)
         try {
             const hoy = new Date().toISOString().split('T')[0];
-            const idSedeDp = data.id_sede_dp ? parseInt(data.id_sede_dp) : null;
+            // Siempre sede 1 — es la única sede habilitada para este
+            // servicio, ya lo confirmamos arriba con el bloqueo de acceso.
+            const idSedeDp = 1;
 
             if (idSedeDp) {
                 const { data: prestadoresCoordSede } = await supabase
@@ -386,11 +418,13 @@ try {
                         dni: data.paciente.dni,
                         nombre_completo: data.paciente.nombre || '',
                         descripcion_practica: 'Módulo Seguimiento',
+                        codigo_prestacion: '339164',
                         estado: 'REALIZADA',
                         fecha_autorizacion: hoy,
                         fecha_carga: hoy,
                         id_prestador: prestadorCoord.id,
                         nombre_prestador: prestadorCoord.nombre_institucion,
+                        id_sede_dp: idSedeDp,
                     });
                     console.log('✅ Módulo Seguimiento (339164) registrado para DNI:', data.paciente.dni);
                 } else {
