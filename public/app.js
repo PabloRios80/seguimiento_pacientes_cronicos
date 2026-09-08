@@ -410,6 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
           Nombre: data.iapos?.nombre?.split(",")[1]?.trim() || "",
           Apellido: data.iapos?.nombre?.split(",")[0]?.trim() || "",
           Edad: data.iapos?.edad || data.ultimoDP?.edad || "",
+          Sexo: data.iapos?.sexo || data.ultimoDP?.sexo || "",
           DNI: dni,
           Fecha_cierre_DP: data.ultimoDP?.fechax,
           // Mapear campos de Supabase a nombres que esperan las funciones evaluate*
@@ -891,7 +892,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Obtener valores REALES del paciente (sin procesar)
     const valoresReales = {
       edad: parseInt(data.Edad || data.edad) || 0,
-      sexo: (data.Sexo || "").toUpperCase().startsWith("F")
+      sexo: (data.Sexo || data.sexo || "").toUpperCase().startsWith("F")
         ? "Femenino"
         : "Masculino",
       presion:
@@ -1370,7 +1371,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // ... (Tu lógica para recomendar según edad y sexo es correcta aquí) ...
         const edad = parseInt(data.Edad || data.edad) || 0;
-        const sexo = (data.Sexo || "").toUpperCase().startsWith("F")
+        const sexo = (data.Sexo || data.sexo || "").toUpperCase().startsWith("F")
           ? "Femenino"
           : "Masculino";
 
@@ -2747,6 +2748,7 @@ function cargarDPAnterior(dp) {
     ...dp,
     Nombre: window._currentPatientData?.Nombre || "",
     Apellido: window._currentPatientData?.Apellido || "",
+    Sexo: window._currentPatientData?.Sexo || dp.sexo || "",
     DNI: window._currentPatientDNI,
     Fecha_cierre_DP: dp.fechax,
     Presion_Arterial: dp.presion_arterial,
