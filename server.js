@@ -454,6 +454,7 @@ app.post('/api/seguimiento/historial', async (req, res) => {
         res.json({ success: true, historial });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
+let padronPausadoHasta = 0; // corte rápido: tras una falla del padrón, 5 min sin esperarlo
 app.post('/api/verificar-seguimiento', async (req, res) => {
     const dni = String(req.body.dni).trim();
     const hoy = new Date();
@@ -478,10 +479,11 @@ app.post('/api/verificar-seguimiento', async (req, res) => {
 
         let datosIAPOS = null;
         try {
+            if (Date.now() < padronPausadoHasta) throw new Error('Padrón IAPOS en pausa por falla reciente');
             const iaposRes = await axios.post(
                 'https://aswe.santafe.gov.ar/iapos-sw-srvt/servlet/abewsvalidaafi',
                 soapBody,
-                { headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': 'IAPOS_WSaction/ABEWSVALIDAAFI.Execute' }, timeout: 10000 }
+                { headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': 'IAPOS_WSaction/ABEWSVALIDAAFI.Execute' }, timeout: 4000 }
             );
             const xml = iaposRes.data;
             const getValor = (tag) => {
@@ -497,6 +499,7 @@ app.post('/api/verificar-seguimiento', async (req, res) => {
             };
         } catch (e) {
             console.error('Error IAPOS:', e.message);
+            if (!String(e.message).includes('en pausa')) padronPausadoHasta = Date.now() + 5 * 60 * 1000;
         }
 
         // 2. Buscar historial DP en Supabase
@@ -508,6 +511,57 @@ app.post('/api/verificar-seguimiento', async (req, res) => {
             .order('fechax', { ascending: false });
 
         const ultimoDP = historialDP?.[0] || null;
+
+        // 2b. Si el padrón de IAPOS no respondió, NO trabamos al médico:
+        // se continúa con los datos propios (hoja de vida / último DP),
+        // igual que en hoja de vida y en los cierres.
+        if (!datosIAPOS) {
+            let propio = null;
+            try {
+                const [{ data: adulto }, { data: menores }] = await Promise.all([
+                    supabase.from('afiliados')
+                        .select('apellido, nombre, edad, fecha_nacimiento, sexo_biologico')
+                        .eq('dni', dni).maybeSingle(),
+                    supabase.from('afiliados_menores')
+                        .select('apellido, nombre, edad, fecha_nacimiento, sexo_biologico')
+                        .eq('dni', dni).order('fecha_carga', { ascending: false }).limit(1),
+                ]);
+                propio = adulto || (menores || [])[0] || null;
+            } catch (e2) {
+                console.error('Error buscando datos propios (seguimiento):', e2.message);
+            }
+
+            let nombre = null;
+            if (propio && (propio.apellido || propio.nombre)) {
+                nombre = `${propio.apellido || ''}, ${propio.nombre || ''}`.replace(/^, |, $/g, '').trim();
+            } else if (ultimoDP?.apellido_y_nombre) {
+                const completo = String(ultimoDP.apellido_y_nombre).trim();
+                const i = completo.indexOf(' ');
+                nombre = i > 0 ? `${completo.slice(0, i)}, ${completo.slice(i + 1)}` : completo;
+            }
+
+            let edad = propio?.edad != null && propio.edad !== '' ? String(propio.edad) : null;
+            if (propio?.fecha_nacimiento) {
+                const fn = new Date(String(propio.fecha_nacimiento).slice(0, 10) + 'T00:00:00');
+                if (!isNaN(fn)) {
+                    let ed = hoy.getFullYear() - fn.getFullYear();
+                    if (hoy.getMonth() < fn.getMonth() || (hoy.getMonth() === fn.getMonth() && hoy.getDate() < fn.getDate())) ed--;
+                    if (ed >= 0 && ed <= 115) edad = String(ed);
+                }
+            }
+
+            const sexoBio = String(propio?.sexo_biologico || '').toLowerCase();
+            const sexo = sexoBio.startsWith('f') ? 'F' : sexoBio.startsWith('m') ? 'M' : null;
+
+            datosIAPOS = {
+                esActivo: true,
+                padronCaido: true,
+                nombre,
+                edad,          // si es null, el front usa la edad del último DP
+                sexo,          // si es null, el front usa el sexo del último DP
+                localidad: null,
+            };
+        }
 
         // 3. Verificar bloqueos
         let bloqueado = false;
